@@ -21,28 +21,20 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 3: Runtime (minimal — no build tools, no dev deps)
+# Stage 3: Runtime (run as root — no permission issues with volumes)
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Limit V8 heap to 256MB; tune higher if dashboard handles heavy concurrent requests
-ENV NODE_OPTIONS="--max-old-space-size=256"
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copy standalone output (includes only production node_modules + compiled better-sqlite3)
+# Copy standalone output
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 # Data directory for SQLite
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
-
-USER nextjs
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 

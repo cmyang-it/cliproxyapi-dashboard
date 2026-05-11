@@ -22,8 +22,27 @@ export function getDb(): Database.Database {
       console.log(`[db] Created directory: ${dbDir}`)
     }
 
+    // Verify the directory is writable before attempting to open/create the DB
+    try {
+      fs.accessSync(dbDir, fs.constants.W_OK)
+    } catch {
+      const stat = fs.statSync(dbDir)
+      console.error(
+        `[db] Directory not writable: ${dbDir} (uid=${stat.uid}, gid=${stat.gid}, mode=${stat.mode.toString(8)}). ` +
+        `Running as uid=${process.getuid?.() ?? "?"}, gid=${process.getgid?.() ?? "?"}. ` +
+        `Fix: docker-compose down -v && docker-compose up -d, or chmod 777 the data directory.`
+      )
+      throw new Error(`Cannot write to database directory: ${dbDir}`)
+    }
+
     const dbExists = fs.existsSync(env.dbPath)
-    _db = new Database(env.dbPath)
+    try {
+      _db = new Database(env.dbPath)
+    } catch (err) {
+      console.error(`[db] Failed to open database: ${env.dbPath} — ${err instanceof Error ? err.message : err}`)
+      throw err
+    }
+
     _db.pragma("journal_mode = WAL")
     _db.pragma("busy_timeout = 30000")
 
