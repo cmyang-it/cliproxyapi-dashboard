@@ -19,10 +19,20 @@ export function getDb(): Database.Database {
     const dbDir = path.dirname(env.dbPath)
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true })
+      console.log(`[db] Created directory: ${dbDir}`)
     }
+
+    const dbExists = fs.existsSync(env.dbPath)
     _db = new Database(env.dbPath)
     _db.pragma("journal_mode = WAL")
     _db.pragma("busy_timeout = 30000")
+
+    if (dbExists) {
+      console.log(`[db] Opened existing database: ${env.dbPath}`)
+    } else {
+      console.log(`[db] Created new database: ${env.dbPath}`)
+    }
+
     initSchema(_db)
   }
   return _db
