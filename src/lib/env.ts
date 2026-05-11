@@ -5,7 +5,6 @@
  *
  * Accepts forms like:
  *   http://127.0.0.1:8317
- *   https://api.xiyangai.cn
  *   http://192.168.1.100:8371/v0/management   (path is stripped)
  */
 function parseBaseUrl(): string {
@@ -30,7 +29,7 @@ function parseBaseUrl(): string {
 const _baseUrl = parseBaseUrl()
 
 export const env = {
-  /** Full base URL of CLIProxyAPI, e.g. "https://api.xiyangai.cn" or "http://127.0.0.1:8317" */
+  /** Full base URL of CLIProxyAPI, e.g. "http://127.0.0.1:8317" */
   apiBaseUrl: _baseUrl,
 
   /** Management API plaintext key (required) */

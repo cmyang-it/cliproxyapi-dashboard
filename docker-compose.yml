@@ -4,8 +4,9 @@ services:
   dashboard:
     build: .
     container_name: cliproxyapi-dashboard
+    network_mode: bridge
     ports:
-      - "8320:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - CLIPROXY_URL=${CLIPROXY_URL:-http://127.0.0.1:8317}
       - MANAGEMENT_KEY=${MANAGEMENT_KEY:-}
@@ -18,8 +19,6 @@ services:
       - dashboard-data:/app/data
       - ${AUTH_DIR:-/tmp/cliproxy-auth}:/auth:ro  # Codex OAuth files (optional)
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 volumes:
   dashboard-data:

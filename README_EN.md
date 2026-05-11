@@ -83,7 +83,7 @@ Open `http://localhost:8320` in your browser.
 | `SOCKS5_PROXY_HOST` | — | SOCKS5 proxy host for quota fetching |
 | `SOCKS5_PROXY_PORT` | `0` | SOCKS5 proxy port (0 = disabled) |
 
-> **Prefer `CLIPROXY_URL`**: set `http://127.0.0.1:8317` or `https://api.xiyangai.cn` — the system auto-parses protocol, host, and port. Legacy `CLIPROXY_HOST` + `CLIPROXY_PORT` are still supported.
+> **Prefer `CLIPROXY_URL`**: set `http://127.0.0.1:8317` — the system auto-parses protocol, host, and port. Legacy `CLIPROXY_HOST` + `CLIPROXY_PORT` are still supported.
 
 ## Authentication
 

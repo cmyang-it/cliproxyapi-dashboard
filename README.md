@@ -83,7 +83,7 @@ docker-compose logs -f
 | `SOCKS5_PROXY_HOST` | — | 余量查询代理地址 |
 | `SOCKS5_PROXY_PORT` | `0` | 余量查询代理端口（0 = 禁用） |
 
-> **推荐使用 `CLIPROXY_URL`**：填写 `http://127.0.0.1:8317` 或 `https://api.xiyangai.cn`，系统自动解析协议、主机和端口。旧版 `CLIPROXY_HOST` + `CLIPROXY_PORT` 仍兼容。
+> **推荐使用 `CLIPROXY_URL`**：填写 `http://127.0.0.1:8317`，系统自动解析协议、主机和端口。旧版 `CLIPROXY_HOST` + `CLIPROXY_PORT` 仍兼容。
 
 ## 登录认证
 
