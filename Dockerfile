@@ -1,8 +1,16 @@
 # Stage 1: Install dependencies (needs build tools for better-sqlite3 native compilation)
 FROM node:20-alpine AS deps
+
+# Use Alibaba Cloud APK mirror (fast in China)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
+
 COPY package.json package-lock.json ./
+
+# Use npmmirror (China mirror) for faster installs
+RUN npm config set registry https://registry.npmmirror.com
 RUN npm ci --cache /tmp/npm-cache
 
 # Stage 2: Build Next.js (build tools no longer needed — native modules already compiled)
@@ -41,6 +49,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV DB_PATH=/app/data/usage.sqlite
 
+# wget is included in Alpine base image (busybox)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget -qO- http://localhost:3000/api/health || exit 1
 
