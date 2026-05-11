@@ -4,6 +4,7 @@ services:
   dashboard:
     build: .
     container_name: cliproxyapi-dashboard
+    restart: unless-stopped
     network_mode: bridge
     ports:
       - "127.0.0.1:3000:3000"
@@ -12,13 +13,9 @@ services:
       - MANAGEMENT_KEY=${MANAGEMENT_KEY:-}
       - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-2}
       - QUOTA_REFRESH_SECONDS=${QUOTA_REFRESH_SECONDS:-300}
-      - AUTH_DIR=${AUTH_DIR:-}
+      - AUTH_DIR=${AUTH_DIR:-/app/auths}
       - SOCKS5_PROXY_HOST=${SOCKS5_PROXY_HOST:-}
       - SOCKS5_PROXY_PORT=${SOCKS5_PROXY_PORT:-0}
     volumes:
-      - dashboard-data:/app/data
-      - ${AUTH_DIR:-/tmp/cliproxy-auth}:/auth:ro  # Codex OAuth files (optional)
-    restart: unless-stopped
-
-volumes:
-  dashboard-data:
+      - ./data:/app/data
+      - ./auths:${AUTH_DIR:-/app/auths}:ro  # Codex OAuth files (optional)
