@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  dashboard:
+    build: .
+    container_name: cliproxyapi-dashboard
+    ports:
+      - "8320:3000"
+    environment:
+      - CLIPROXY_URL=${CLIPROXY_URL:-http://127.0.0.1:8317}
+      - MANAGEMENT_KEY=${MANAGEMENT_KEY:-}
+      - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-2}
+      - QUOTA_REFRESH_SECONDS=${QUOTA_REFRESH_SECONDS:-300}
+      - AUTH_DIR=${AUTH_DIR:-}
+      - SOCKS5_PROXY_HOST=${SOCKS5_PROXY_HOST:-}
+      - SOCKS5_PROXY_PORT=${SOCKS5_PROXY_PORT:-0}
+    volumes:
+      - dashboard-data:/app/data
+      - ${AUTH_DIR:-/tmp/cliproxy-auth}:/auth:ro  # Codex OAuth files (optional)
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  dashboard-data:
