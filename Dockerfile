@@ -2,16 +2,20 @@
 FROM node:20-alpine AS deps
 
 # Use Alibaba Cloud APK mirror (fast in China)
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
-    && apk add --no-cache python3 make g++
+#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+#    && apk add --no-cache python3 make g++
+
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 
 # Use npmmirror (China mirror) for faster installs
-RUN npm config set registry https://registry.npmmirror.com \
-    && npm ci --cache /tmp/npm-cache
+#RUN npm config set registry https://registry.npmmirror.com \
+#    && npm ci --cache /tmp/npm-cache
+
+RUN npm ci --cache /tmp/npm-cache
 
 # Stage 2: Build Next.js (build tools no longer needed — native modules already compiled)
 FROM node:20-alpine AS builder
