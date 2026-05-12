@@ -2,7 +2,7 @@
 
 import { memo } from "react"
 import { cn, fmtPct } from "@/lib/utils"
-import { Circle, ShieldCheck, ShieldAlert } from "lucide-react"
+import { ShieldCheck, ShieldAlert, Coins } from "lucide-react"
 import type { QuotaSnapshot } from "@/lib/types"
 
 interface QuotaPanelProps {
@@ -15,70 +15,128 @@ export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
   }
 
   return (
-    <div className="overflow-auto max-h-[300px]">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card z-10">
-          <tr>
-            <th className="table-header text-left py-2">账号</th>
-            <th className="table-header text-center py-2">状态</th>
-            <th className="table-header text-left py-2">5h 剩余</th>
-            <th className="table-header text-left py-2">7d 剩余</th>
-            <th className="table-header text-left py-2">重置时间</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((q) => (
-            <tr key={q.email} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-              <td className="py-2.5 pr-4 font-medium truncate max-w-[180px]">{q.email}</td>
-              <td className="py-2.5 text-center">
-                {q.allowed ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span className="text-xs">可用</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-destructive">
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    <span className="text-xs">受限</span>
-                  </span>
-                )}
-              </td>
-              <td className="py-2.5">
-                <QuotaBar value={q.primary_remaining_percent} />
-              </td>
-              <td className="py-2.5">
-                <QuotaBar value={q.secondary_remaining_percent} />
-              </td>
-              <td className="py-2.5 text-xs text-muted-foreground">
-                <div>{q.primary_reset_at || "-"}</div>
-                <div>{q.secondary_reset_at || "-"}</div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[400px] overflow-auto pr-1">
+      {data.map((q) => (
+        <QuotaCard key={q.email} quota={q} />
+      ))}
     </div>
   )
 })
 
-function QuotaBar({ value }: { value: number }) {
-  const v = Math.max(0, Math.min(100, value))
-  const cls =
-    v <= 10
-      ? "bg-destructive"
-      : v <= 30
-        ? "bg-amber-500"
-        : "bg-emerald-500"
+function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
+  const q = quota
+  const blocked = !q.allowed || !!q.limit_reached
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden min-w-[60px]">
+    <div
+      className={cn(
+        "rounded-lg border p-3 transition-colors",
+        blocked
+          ? "border-destructive/30 bg-destructive/5"
+          : "border-border bg-card hover:border-primary/30",
+      )}
+    >
+      {/* Header: email + plan + icon-only status */}
+      <div className="flex items-center gap-1.5 mb-2.5 min-w-0">
+        <span className="text-xs font-medium truncate" title={q.email}>
+          {q.email}
+        </span>
+        {q.plan && (
+          <span className="text-[10px] px-1 py-px rounded font-medium bg-primary/10 text-primary shrink-0">
+            {q.plan}
+          </span>
+        )}
+        <span className="ml-auto shrink-0 flex items-center gap-1">
+          {blocked ? (
+            <>
+              <ShieldAlert className="w-3.5 h-3.5 text-destructive" />
+              <span className="text-[10px] text-destructive font-medium">
+                {q.limit_reached ? "达限" : "受限"}
+              </span>
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-[10px] text-emerald-400 font-medium">可用</span>
+            </>
+          )}
+        </span>
+      </div>
+
+      {/* Quota: label + pct + reset on top, bar below */}
+      <QuotaBar
+        label="周额度"
+        pct={q.primary_remaining_percent}
+        resetAt={formatShort(q.primary_reset_at)}
+      />
+
+      {/* Credits */}
+      {q.credits_balance && (
+        <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Coins className="w-3 h-3" />
+          <span className="font-mono font-medium text-foreground">
+            ${q.credits_balance}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuotaBar({
+  label,
+  pct,
+  resetAt,
+}: {
+  label: string
+  pct: number
+  resetAt: string | null
+}) {
+  const v = Math.max(0, Math.min(100, pct))
+  const barColor =
+    v <= 10 ? "bg-destructive" : v <= 30 ? "bg-amber-500" : "bg-emerald-500"
+
+  return (
+    <div>
+      {/* Label row: 周额度 (bold) ... 97%  5/19 18:23 */}
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[11px] text-muted-foreground font-semibold">{label}</span>
+        <span className="flex-1" />
+        <span
+          className={cn(
+            "text-xs font-semibold tabular-nums",
+            v <= 10 ? "text-destructive" : v <= 30 ? "text-amber-500" : "text-emerald-500",
+          )}
+        >
+          {fmtPct(v)}
+        </span>
+        {resetAt && (
+          <span className="text-xs tabular-nums text-muted-foreground/70">
+            {resetAt}
+          </span>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-2 bg-secondary rounded-full overflow-hidden">
         <div
-          className={cn("h-full rounded-full transition-all", cls)}
+          className={cn("h-full rounded-full transition-all duration-500", barColor)}
           style={{ width: `${v}%` }}
         />
       </div>
-      <span className="text-xs tabular-nums w-10 text-right">{fmtPct(v)}</span>
     </div>
   )
+}
+
+/** Shorten reset timestamp: M/D HH:MM */
+function formatShort(iso: string | null): string | null {
+  if (!iso) return null
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso.slice(5, 16)
+    // M/D HH:mm
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+  } catch {
+    return iso.slice(5, 16)
+  }
 }
