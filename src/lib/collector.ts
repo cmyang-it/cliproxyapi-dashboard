@@ -1,30 +1,56 @@
 import { env } from "./env"
 import { getDb, insertUsageBatch } from "./db"
 
-let collectorHandle: ReturnType<typeof setInterval> | null = null
-let running = false
-let lastPollAt = 0
+// ---------------------------------------------------------------------------
+// Cross-context singleton via globalThis
+//
+// Next.js compiles instrumentation hooks and API routes into separate webpack
+// bundles. Module-level `let` / `const` are NOT shared across bundles.  To
+// prevent the collector from starting twice we store its state on globalThis
+// so every compilation context sees the same instance.
+// ---------------------------------------------------------------------------
+
+const G = globalThis as Record<string, unknown>
+const KEY = "__cliproxydash_collector"
+
+interface CollectorState {
+  running: boolean
+  handle: ReturnType<typeof setInterval> | null
+  lastPollAt: number
+}
+
+function state(): CollectorState {
+  if (!G[KEY]) {
+    G[KEY] = { running: false, handle: null, lastPollAt: 0 } satisfies CollectorState
+  }
+  return G[KEY] as CollectorState
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export function isRunning(): boolean {
-  return running
+  return state().running
 }
 
 export function lastPollTime(): number {
-  return lastPollAt
+  return state().lastPollAt
 }
 
 /**
  * Start the background collector.
- * Idempotent — safe to call multiple times (including on every API request).
+ * Idempotent — safe to call multiple times (including across webpack contexts).
  */
 export function startCollector(): void {
-  if (running) return
+  const s = state()
+  if (s.running) return
   if (!env.managementKey) {
     console.warn("[collector] MANAGEMENT_KEY not set — collector stays idle")
     return
   }
 
-  running = true
+  s.running = true
   const url = `${env.apiBaseUrl}/v0/management/usage-queue?count=100`
 
   console.log(`[collector] Polling ${url} every ${env.pollIntervalSeconds}s`)
@@ -52,7 +78,7 @@ export function startCollector(): void {
       if (!Array.isArray(items) || items.length === 0) return
 
       const inserted = insertUsageBatch(items)
-      lastPollAt = Date.now()
+      s.lastPollAt = Date.now()
       if (inserted > 0) {
         console.log(`[collector] +${inserted} events`)
       }
@@ -64,14 +90,15 @@ export function startCollector(): void {
 
   // poll immediately, then on interval
   poll()
-  collectorHandle = setInterval(poll, env.pollIntervalSeconds * 1000)
+  s.handle = setInterval(poll, env.pollIntervalSeconds * 1000)
 }
 
 export function stopCollector(): void {
-  running = false
-  if (collectorHandle) {
-    clearInterval(collectorHandle)
-    collectorHandle = null
+  const s = state()
+  s.running = false
+  if (s.handle) {
+    clearInterval(s.handle)
+    s.handle = null
   }
 }
 

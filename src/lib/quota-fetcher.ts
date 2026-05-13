@@ -174,22 +174,47 @@ export async function refreshAllQuotas(): Promise<number> {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-let quotaHandle: ReturnType<typeof setInterval> | null = null
-let quotaRunning = false
+// Cross-context singleton via globalThis (see collector.ts for rationale)
+const QKEY = "__cliproxydash_quota"
+
+interface QuotaState {
+  running: boolean
+  handle: ReturnType<typeof setInterval> | null
+}
+
+function qstate(): QuotaState {
+  const G = globalThis as Record<string, unknown>
+  if (!G[QKEY]) {
+    G[QKEY] = { running: false, handle: null }
+  }
+  return G[QKEY] as QuotaState
+}
+
+// ---------------------------------------------------------------------------
+// Public lifecycle API
+// ---------------------------------------------------------------------------
 
 export function startQuotaFetcher(): void {
-  if (quotaRunning) return
+  const s = qstate()
+  if (s.running) return
   if (!env.authDir) {
     console.log("[quota] AUTH_DIR not configured — quota fetcher idle")
     return
   }
 
-  quotaRunning = true
+  s.running = true
   const intervalMs = env.quotaRefreshSeconds * 1000
 
   console.log(
     `[quota] Quota fetcher started — refresh every ${env.quotaRefreshSeconds}s`,
   )
+
+  // Log proxy configuration at startup for diagnostics
+  if (env.socks5ProxyHost && env.socks5ProxyPort > 0) {
+    console.log(`[quota] SOCKS5 proxy: ${env.socks5ProxyHost}:${env.socks5ProxyPort}`)
+  } else {
+    console.log("[quota] SOCKS5 proxy: disabled (direct connection will be used)")
+  }
 
   // Fire immediately (non-blocking), then on interval
   refreshAllQuotas()
@@ -200,7 +225,7 @@ export function startQuotaFetcher(): void {
       console.error(`[quota] Initial refresh failed: ${err instanceof Error ? err.message : err}`)
     })
 
-  quotaHandle = setInterval(() => {
+  s.handle = setInterval(() => {
     refreshAllQuotas()
       .then((n) => {
         if (n > 0) console.log(`[quota] Periodic refresh: ${n} account(s)`)
@@ -212,16 +237,17 @@ export function startQuotaFetcher(): void {
 }
 
 export function stopQuotaFetcher(): void {
-  quotaRunning = false
-  if (quotaHandle) {
-    clearInterval(quotaHandle)
-    quotaHandle = null
+  const s = qstate()
+  s.running = false
+  if (s.handle) {
+    clearInterval(s.handle)
+    s.handle = null
     console.log("[quota] Quota fetcher stopped")
   }
 }
 
 export function isQuotaRunning(): boolean {
-  return quotaRunning
+  return qstate().running
 }
 
 /**

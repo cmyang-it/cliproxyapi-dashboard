@@ -9,7 +9,8 @@
 import net from "net"
 import tls from "tls"
 import https from "https"
-import { env } from "./env"
+// env proxy fields are read directly from process.env at call time
+// to avoid Next.js webpack module-snapshot issues.
 
 /**
  * Create a raw TCP connection through a SOCKS5 proxy.
@@ -255,13 +256,25 @@ export async function fetchHttpsJson(
   const hostname = u.hostname
   const path = u.pathname + u.search
 
+  // Read proxy config DIRECTLY from process.env at call time, NOT from the
+  // module-level `env` object (which may be snapshotted at module-init time
+  // in Next.js webpack bundling, missing Docker runtime overrides).
+  const proxyHost = (process.env.SOCKS5_PROXY_HOST || "").trim()
+  const proxyPort = parseInt(process.env.SOCKS5_PROXY_PORT || "0", 10)
+
+  // One-time log so operators can verify proxy config at runtime
+  if (proxyHost && proxyPort > 0) {
+    // logged only once via module-level flag
+    ;(fetchHttpsJson as any)._proxyLogged ?? (console.log(`[socks5] Proxy enabled: ${proxyHost}:${proxyPort}`), (fetchHttpsJson as any)._proxyLogged = true)
+  }
+
   let status: number
   let body: string
 
-  if (env.socks5ProxyHost && env.socks5ProxyPort > 0) {
+  if (proxyHost && proxyPort > 0) {
     const tlsSocket = await socks5TlsConnect(
-      env.socks5ProxyHost,
-      env.socks5ProxyPort,
+      proxyHost,
+      proxyPort,
       hostname,
       443,
       timeoutMs,

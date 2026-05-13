@@ -12,9 +12,12 @@ import type {
   QuotaSnapshot,
 } from "./types"
 
-let _db: Database.Database | null = null
+// Cross-context singleton via globalThis (see collector.ts for rationale)
+const DB_KEY = "__cliproxydash_db"
 
 export function getDb(): Database.Database {
+  const G = globalThis as Record<string, unknown>
+  let _db = G[DB_KEY] as Database.Database | undefined
   if (!_db) {
     const dbDir = path.dirname(env.dbPath)
     if (!fs.existsSync(dbDir)) {
@@ -53,6 +56,7 @@ export function getDb(): Database.Database {
     }
 
     initSchema(_db)
+    G[DB_KEY] = _db
   }
   return _db
 }

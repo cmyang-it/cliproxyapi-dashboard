@@ -48,7 +48,7 @@ export const env = {
   authDir: process.env.AUTH_DIR || "",
 
   /** SOCKS5 proxy host for quota fetching (optional) */
-  socks5ProxyHost: process.env.SOCKS5_PROXY_HOST || "",
+  socks5ProxyHost: (process.env.SOCKS5_PROXY_HOST || "").trim(),
   /** SOCKS5 proxy port (default 0 = disabled) */
   socks5ProxyPort: parseInt(process.env.SOCKS5_PROXY_PORT || "0", 10),
 
