@@ -43,6 +43,7 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV DB_PATH=/app/data/usage.sqlite
+ENV AUTH_DIR=/app/auths
 
 # wget is included in Alpine base image (busybox)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

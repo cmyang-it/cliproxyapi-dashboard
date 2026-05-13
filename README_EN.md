@@ -65,6 +65,25 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
+```bash
+# docker run
+docker run -d \
+  --name cliproxyapi-dashboard \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  -e CLIPROXY_URL="${CLIPROXY_URL:-http://127.0.0.1:8317}" \
+  -e MANAGEMENT_KEY="${MANAGEMENT_KEY:-}" \
+  -e ACCESS_KEY="${ACCESS_KEY:-admin123}" \
+  -e POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-2}" \
+  -e QUOTA_REFRESH_SECONDS="${QUOTA_REFRESH_SECONDS:-300}" \
+  -e SOCKS5_PROXY_HOST="${SOCKS5_PROXY_HOST:-}" \
+  -e SOCKS5_PROXY_PORT="${SOCKS5_PROXY_PORT:-0}" \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/auths:/app/auths:ro" \
+  xiyangai/cliproxyapi-dashboard:latest
+  
+```
+
 Open `http://localhost:8320` in your browser.
 
 ## Environment Variables
