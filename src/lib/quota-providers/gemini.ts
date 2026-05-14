@@ -56,6 +56,7 @@ export const geminiProvider: QuotaProvider = {
     // Advanced: could inspect response headers for x-ratelimit-* but
     // fetchHttpsJson currently only returns the body.
     return {
+      provider: "gemini",
       email,
       plan: "free",
       allowed: modelCount > 0,

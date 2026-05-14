@@ -60,6 +60,7 @@ export const claudeProvider: QuotaProvider = {
     // Spending limits are configured per workspace in the Console;
     // usage is best tracked client-side via usage_events.
     return {
+      provider: "claude",
       email,
       plan: null,
       allowed: modelCount > 0,

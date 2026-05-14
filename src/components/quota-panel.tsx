@@ -5,6 +5,25 @@ import { cn, fmtPct } from "@/lib/utils"
 import { ShieldCheck, ShieldAlert, Coins } from "lucide-react"
 import type { QuotaSnapshot } from "@/lib/types"
 
+// ---------------------------------------------------------------------------
+// Provider badge config
+// ---------------------------------------------------------------------------
+
+const PROVIDER_BADGE: Record<string, { label: string; bg: string; text: string }> = {
+  codex:  { label: "Codex",  bg: "bg-blue-500/15",   text: "text-blue-400" },
+  kimi:   { label: "Kimi",   bg: "bg-emerald-500/15", text: "text-emerald-400" },
+  gemini: { label: "Gemini", bg: "bg-amber-500/15",   text: "text-amber-400" },
+  claude: { label: "Claude", bg: "bg-violet-500/15",  text: "text-violet-400" },
+}
+
+function providerBadge(type: string) {
+  return PROVIDER_BADGE[type] || { label: type || "?", bg: "bg-secondary", text: "text-muted-foreground" }
+}
+
+// ---------------------------------------------------------------------------
+// QuotaPanel
+// ---------------------------------------------------------------------------
+
 interface QuotaPanelProps {
   data: QuotaSnapshot[]
 }
@@ -15,7 +34,7 @@ export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[400px] overflow-auto pr-1">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[500px] overflow-auto pr-1 scrollbar-hide">
       {data.map((q) => (
         <QuotaCard key={q.email} quota={q} />
       ))}
@@ -23,9 +42,14 @@ export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
   )
 })
 
+// ---------------------------------------------------------------------------
+// QuotaCard
+// ---------------------------------------------------------------------------
+
 function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
   const q = quota
   const blocked = !q.allowed || !!q.limit_reached
+  const badge = providerBadge(q.provider)
 
   return (
     <div
@@ -36,39 +60,75 @@ function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
           : "border-border bg-card hover:border-primary/30",
       )}
     >
-      {/* Header: email + plan + icon-only status */}
-      <div className="flex items-center gap-1.5 mb-2.5 min-w-0">
+      {/* Header row: provider badge + email + plan + status */}
+      <div className="flex items-center gap-1.5 mb-3 min-w-0">
+        {/* Provider badge — prominent pill before account name */}
+        <span className={cn(
+          "text-xs px-2.5 py-1 rounded-md font-bold shrink-0 tracking-wider",
+          badge.bg, badge.text,
+        )}>
+          {badge.label}
+        </span>
+
+        {/* Email (truncated) */}
         <span className="text-xs font-medium truncate" title={q.email}>
           {q.email}
         </span>
+
+        {/* Plan */}
         {q.plan && (
           <span className="text-[10px] px-1 py-px rounded font-medium bg-primary/10 text-primary shrink-0">
             {q.plan}
           </span>
         )}
-        <span className="ml-auto shrink-0 flex items-center gap-1">
-          {blocked ? (
-            <>
-              <ShieldAlert className="w-3.5 h-3.5 text-destructive" />
-              <span className="text-[10px] text-destructive font-medium">
-                {q.limit_reached ? "达限" : "受限"}
-              </span>
-            </>
-          ) : (
-            <>
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[10px] text-emerald-400 font-medium">可用</span>
-            </>
+
+        {/* Status + reset time — pushed to right */}
+        <span className="ml-auto shrink-0 flex items-center gap-1.5">
+          <span className="flex items-center gap-1">
+            {blocked ? (
+              <>
+                <ShieldAlert className="w-3.5 h-3.5 text-destructive" />
+                <span className="text-[10px] text-destructive font-medium">
+                  {q.limit_reached ? "达限" : "受限"}
+                </span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-[10px] text-emerald-400 font-medium">可用</span>
+              </>
+            )}
+          </span>
+          {/* Reset time next to status */}
+          {q.primary_reset_at && (
+            <span className="text-[10px] tabular-nums text-muted-foreground/60 shrink-0">
+              {formatShort(q.primary_reset_at)}
+            </span>
           )}
         </span>
       </div>
 
-      {/* Quota: label + pct + reset on top, bar below */}
-      <QuotaBar
-        label="周额度"
-        pct={q.primary_remaining_percent}
-        resetAt={formatShort(q.primary_reset_at)}
-      />
+      {/* Quota bars — per-provider semantics */}
+      {q.provider === "codex" ? (
+        <>
+          <QuotaBar
+            label="5h"
+            pct={q.primary_remaining_percent}
+            resetAt={null}
+          />
+          <QuotaBar
+            label="7d"
+            pct={q.secondary_remaining_percent}
+            resetAt={null}
+          />
+        </>
+      ) : (
+        <QuotaBar
+          label="余量"
+          pct={q.primary_remaining_percent}
+          resetAt={null}
+        />
+      )}
 
       {/* Credits */}
       {q.credits_balance && (
@@ -83,10 +143,13 @@ function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// QuotaBar — single progress bar
+// ---------------------------------------------------------------------------
+
 function QuotaBar({
   label,
   pct,
-  resetAt,
 }: {
   label: string
   pct: number
@@ -97,9 +160,8 @@ function QuotaBar({
     v <= 10 ? "bg-destructive" : v <= 30 ? "bg-amber-500" : "bg-emerald-500"
 
   return (
-    <div>
-      {/* Label row: 周额度 (bold) ... 97%  5/19 18:23 */}
-      <div className="flex items-center gap-1.5 mb-1">
+    <div className="mb-1.5 last:mb-0">
+      <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-[11px] text-muted-foreground font-semibold">{label}</span>
         <span className="flex-1" />
         <span
@@ -110,14 +172,7 @@ function QuotaBar({
         >
           {fmtPct(v)}
         </span>
-        {resetAt && (
-          <span className="text-xs tabular-nums text-muted-foreground/70">
-            {resetAt}
-          </span>
-        )}
       </div>
-
-      {/* Progress bar */}
       <div className="h-2 bg-secondary rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-500", barColor)}
@@ -134,7 +189,6 @@ function formatShort(iso: string | null): string | null {
   try {
     const d = new Date(iso)
     if (isNaN(d.getTime())) return iso.slice(5, 16)
-    // M/D HH:mm
     return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
   } catch {
     return iso.slice(5, 16)

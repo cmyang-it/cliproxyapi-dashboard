@@ -98,6 +98,7 @@ function initSchema(db: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       timestamp TEXT NOT NULL,
       ts_epoch REAL NOT NULL,
+      provider TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL,
       plan TEXT,
       allowed INTEGER,
@@ -114,12 +115,13 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_quota_email_ts ON quota_snapshots(email, ts_epoch);
   `)
 
-  // Migration: add api_key column for existing databases
+  // Migration: add columns for existing databases
   try {
     db.exec("ALTER TABLE usage_events ADD COLUMN api_key TEXT")
-  } catch {
-    // column already exists
-  }
+  } catch { /* column already exists */ }
+  try {
+    db.exec("ALTER TABLE quota_snapshots ADD COLUMN provider TEXT NOT NULL DEFAULT ''")
+  } catch { /* column already exists */ }
 }
 
 /** Insert raw usage JSON records into SQLite, deduping by request_id */
@@ -184,6 +186,7 @@ export function insertUsageBatch(items: unknown[]): number {
 }
 
 export function insertQuotaSnapshot(data: {
+  provider: string
   email: string
   plan: string | null
   allowed: boolean
@@ -199,14 +202,15 @@ export function insertQuotaSnapshot(data: {
   const now = new Date()
   db.prepare(`
     INSERT INTO quota_snapshots (
-      timestamp, ts_epoch, email, plan, allowed, limit_reached,
+      timestamp, ts_epoch, provider, email, plan, allowed, limit_reached,
       primary_used_percent, primary_remaining_percent, primary_reset_at,
       secondary_used_percent, secondary_remaining_percent, secondary_reset_at,
       credits_balance, raw_json
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     now.toISOString(),
     now.getTime() / 1000,
+    data.provider,
     data.email,
     data.plan,
     data.allowed ? 1 : 0,
@@ -365,7 +369,7 @@ export function queryLatestQuotas(): Omit<QuotaSnapshot, "raw_json">[] {
   const db = getDb()
   return db
     .prepare(
-      `SELECT q.id, q.timestamp, q.ts_epoch, q.email, q.plan,
+      `SELECT q.id, q.timestamp, q.ts_epoch, q.provider, q.email, q.plan,
               q.allowed, q.limit_reached,
               q.primary_used_percent, q.primary_remaining_percent, q.primary_reset_at,
               q.secondary_used_percent, q.secondary_remaining_percent, q.secondary_reset_at,

@@ -43,6 +43,8 @@ export interface AuthFile {
  * see src/lib/db.ts for the storage schema.
  */
 export interface QuotaResult {
+  /** Provider identifier matching QuotaProvider.type ("codex"|"kimi"|"gemini"|"claude") */
+  provider: string
   email: string
   plan: string | null
   allowed: boolean

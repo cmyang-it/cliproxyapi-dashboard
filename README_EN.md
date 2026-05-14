@@ -4,12 +4,13 @@ A local-first usage statistics and monitoring dashboard for CLIProxyAPI. It coll
 
 ## Features
 
-- **KPI Overview** — Request count, total tokens, input/output/reasoning/cached tokens
+- **Home / Details Tabs** — Dual-tab navigation: Home for overview & charts, Details for consumption tables & quotas
+- **KPI Overview** — Request count (with success/failure breakdown), total tokens, input/output/reasoning/cached tokens
 - **Hourly Trends** — Token consumption area chart grouped by hour
-- **Model Distribution** — Donut pie chart showing token share per model (Top 7 + "Others")
-- **Account Consumption** — Detailed breakdown by account/source
-- **API Key Consumption** — Token usage grouped by individual API key
-- **Quota Status** — Codex 5h/7d remaining quota progress bars per account
+- **Model Distribution** — Custom gradient horizontal bar chart with framer-motion animations, Top 10 models, global percentage
+- **Account Consumption** — Detailed breakdown by account/source (Details tab)
+- **API Key Consumption** — Token usage grouped by individual API key (Details tab)
+- **Quota Status** — Codex: 5h/7d dual progress bars; Kimi/Gemini/Claude: single quota bar; color-coded provider badges (Details tab)
 - **Request Feed** — Recent requests with token counts, latency, and model info
 - **Time Range** — Toggle between Today, 1h, 5h, 24h, and 7d views
 - **Light / Dark Mode** — One-click theme toggle, preference persisted in localStorage
@@ -155,7 +156,7 @@ CLIProxyAPI :8317  ←→  Dashboard (Next.js)
 ## Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
-- **Charts**: Recharts (Area Chart / Donut Pie Chart)
+- **Charts**: Recharts (Area Chart) + framer-motion (custom bar chart)
 - **Database**: better-sqlite3 (WAL mode)
 - **Styling**: Tailwind CSS + CSS custom properties theme system
 - **Icons**: Lucide React

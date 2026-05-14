@@ -15,7 +15,7 @@ export const RequestFeed = memo(function RequestFeed({ data }: RequestFeedProps)
   }
 
   return (
-    <div className="overflow-auto max-h-[420px]">
+    <div className="overflow-auto max-h-[420px] scrollbar-hide">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-card z-10">
           <tr>

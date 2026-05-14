@@ -4,12 +4,13 @@ CLIProxyAPI 用量统计与监控面板。本项目完全通过 DeepSeek TUI + D
 
 ## 功能
 
-- **KPI 总览** — 请求数、总 Token、输入/输出/推理 Token、缓存 Token
+- **首页 / 详情 Tab** — 顶部双 Tab 切换，首页展示概览和图表，详情展示消耗明细和余量
+- **KPI 总览** — 请求数（含成功/失败明细）、总 Token、输入/输出/推理 Token、缓存 Token
 - **时间趋势** — 按小时的 Token 消耗面积图
-- **模型分布** — 各模型 Token 消耗环形饼图，Top 7 独立展示，其余归入"其他"
-- **账号消耗** — 按账号/来源分组的详细统计表
-- **Key 消耗** — 按 API Key 分组的 Token 消耗明细
-- **账号余量** — Codex 5h/7d 配额剩余百分比进度条（Kimi\Claude\Gemini功能不完善）
+- **模型分布** — 自定义渐变水平条形图，framer-motion 动画，Top 10 模型全量占比
+- **账号消耗** — 按账号/来源分组的详细统计表（详情 Tab）
+- **Key 消耗** — 按 API Key 分组的 Token 消耗明细（详情 Tab）
+- **账号余量** — Codex 显示 5h/7d 双进度条；Kimi/Gemini/Claude 显示统一余量进度条；provider 彩色徽章标识（详情 Tab）
 - **请求明细** — 最近每次请求的 Token、耗时、模型信息
 - **时间范围** — 支持今天、1h、5h、24h、7d 五种视图切换
 - **亮色/暗色模式** — 一键切换，偏好自动持久化到 localStorage
@@ -161,7 +162,7 @@ CLIProxyAPI :8317  ←→  Dashboard (Next.js)
 ## 技术栈
 
 - **框架**: Next.js 14 (App Router)
-- **图表**: Recharts (面积图 / 环形饼图)
+- **图表**: Recharts (面积图) + framer-motion (自定义条形图)
 - **数据库**: better-sqlite3 (WAL 模式)
 - **样式**: Tailwind CSS + CSS 变量主题系统
 - **图标**: Lucide React

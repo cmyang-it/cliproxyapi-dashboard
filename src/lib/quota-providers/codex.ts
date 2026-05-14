@@ -57,6 +57,7 @@ function parseWhamResponse(raw: WhamResponse, email: string): QuotaResult {
   const secondaryUsed = Math.round(secondary.used_percent || 0)
 
   return {
+    provider: "codex",
     email,
     plan: raw.plan_type || null,
     allowed: rl.allowed !== false,

@@ -89,7 +89,7 @@
   }
 }
 
-/* Scrollbar */
+/* Scrollbar — visible only on page-level scroll */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -103,6 +103,15 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
+}
+
+/* Hide scrollbar on card-level scrollable areas */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* Chart tooltip */

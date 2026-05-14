@@ -60,6 +60,7 @@ export const kimiProvider: QuotaProvider = {
 
     // Kimi has no time-windowed rate limits — use the credit usage as secondary.
     return {
+      provider: "kimi",
       email,
       plan: null,
       allowed: true,

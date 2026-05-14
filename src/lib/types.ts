@@ -55,6 +55,7 @@ export interface QuotaSnapshot {
   id: number
   timestamp: string
   ts_epoch: number
+  provider: string
   email: string
   plan: string | null
   allowed: number

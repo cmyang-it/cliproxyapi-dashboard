@@ -1,20 +1,42 @@
 "use client"
 
-import { memo } from "react"
+import { memo, type ReactNode, type ComponentType } from "react"
 import { fmt } from "@/lib/utils"
-import { Zap, ArrowDownToLine, ArrowUpFromLine, Brain, AlertTriangle, BarChart3 } from "lucide-react"
+import { Zap, ArrowDownToLine, ArrowUpFromLine, Brain, BarChart3 } from "lucide-react"
 import type { SummaryRow } from "@/lib/types"
+
+interface KpiCard {
+  label: string
+  value: string
+  sub: ReactNode
+  icon: ComponentType<{ className?: string }>
+  color: string
+  bg: string
+}
 
 interface KpiCardsProps {
   data: SummaryRow
 }
 
 export const KpiCards = memo(function KpiCards({ data }: KpiCardsProps) {
-  const cards = [
+  const cards: KpiCard[] = [
     {
       label: "请求数",
       value: fmt(data.requests),
-      sub: data.failed > 0 ? `失败 ${fmt(data.failed)}` : "",
+      sub: (
+        <span className="flex items-center gap-3 text-xs">
+          <span className="flex items-center gap-1 text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>成功</span>
+            <span className="tabular-nums font-medium">{fmt(data.requests - data.failed)}</span>
+          </span>
+          <span className="flex items-center gap-1 text-destructive">
+            <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+            <span>失败</span>
+            <span className="tabular-nums font-medium">{fmt(data.failed)}</span>
+          </span>
+        </span>
+      ),
       icon: Zap,
       color: "text-[#6ea8fe]",
       bg: "bg-[#6ea8fe]/10",

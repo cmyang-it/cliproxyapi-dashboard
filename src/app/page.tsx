@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { RefreshCw, Server, Database, Clock, ChevronDown, Radio, RadioTower } from "lucide-react"
+import { RefreshCw, Server, Database, Clock, ChevronDown, Radio, RadioTower, Home, List } from "lucide-react"
 import { cn, fmt, RANGE_OPTIONS, RangeOption } from "@/lib/utils"
 import { KpiCards } from "@/components/kpi-cards"
 import { TokenChart } from "@/components/token-chart"
@@ -14,7 +14,10 @@ import { ApiKeyTable } from "@/components/api-key-table"
 import type { SummaryRow, AccountRow, ModelRow, HourRow, QuotaSnapshot, RecentRequest, ApiKeyRow } from "@/lib/types"
 import { LoginDialog } from "@/components/login-dialog"
 
+type Tab = "home" | "details"
+
 export default function DashboardPage() {
+  const [tab, setTab] = useState<Tab>("home")
   const [range, setRange] = useState<RangeOption>("today")
   const [summary, setSummary] = useState<SummaryRow | null>(null)
   const [accounts, setAccounts] = useState<AccountRow[]>([])
@@ -121,6 +124,31 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Tab navigation */}
+          <div className="flex items-center bg-secondary rounded-lg p-0.5">
+            {[
+              { key: "home" as Tab, label: "首页", icon: <Home className="w-3.5 h-3.5" /> },
+              { key: "details" as Tab, label: "详情", icon: <List className="w-3.5 h-3.5" /> },
+            ].map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                aria-selected={tab === t.key}
+                role="tab"
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
+                  tab === t.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t.icon}
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             {/* Range selector */}
             <div className="relative">
@@ -165,67 +193,76 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="flex-1 max-w-[1440px] mx-auto px-4 md:px-6 py-6 space-y-6 w-full">
-        {/* KPI Cards */}
-        {summary && <KpiCards data={summary} />}
+        {/* --- Home Tab --- */}
+        {tab === "home" && (
+          <>
+            {/* KPI Cards */}
+            {summary && <KpiCards data={summary} />}
 
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <section className="card-border p-5">
-            <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              按小时消耗
-            </h2>
-            {loading && !hours.length ? (
-              <Skeleton />
-            ) : (
-              <TokenChart data={hours} />
-            )}
-          </section>
+            {/* Charts row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <section className="card-border p-5">
+                <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  按小时消耗
+                </h2>
+                {loading && !hours.length ? (
+                  <Skeleton />
+                ) : (
+                  <TokenChart data={hours} />
+                )}
+              </section>
 
-          <section className="card-border p-5">
-            <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
-              <BarChartIcon className="w-4 h-4 text-primary" />
-              模型消耗分布
-            </h2>
-            {loading && !models.length ? (
-              <Skeleton />
-            ) : (
-              <ModelChart data={models} />
-            )}
-          </section>
-        </div>
+              <section className="card-border p-5">
+                <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <BarChartIcon className="w-4 h-4 text-primary" />
+                  模型消耗分布
+                </h2>
+                {loading && !models.length ? (
+                  <Skeleton />
+                ) : (
+                  <ModelChart data={models} />
+                )}
+              </section>
+            </div>
 
-        {/* Tables row */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Request feed */}
             <section className="card-border p-5">
-              <h2 className="text-sm font-semibold mb-3">账号消耗</h2>
-              {loading && !accounts.length ? <Skeleton /> : <AccountTable data={accounts} />}
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold">最近请求</h2>
+                {requests.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {requests.length} 条
+                  </span>
+                )}
+              </div>
+              <RequestFeed data={requests} />
             </section>
-            <section className="card-border p-5">
-              <h2 className="text-sm font-semibold mb-3">Key 消耗</h2>
-              <ApiKeyTable data={apiKeys} />
+          </>
+        )}
+
+        {/* --- Details Tab --- */}
+        {tab === "details" && (
+          <>
+            {/* Tables row: 账号消耗 + Key消耗 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <section className="card-border p-5">
+                <h2 className="text-sm font-semibold mb-3">账号消耗</h2>
+                {loading && !accounts.length ? <Skeleton /> : <AccountTable data={accounts} />}
+              </section>
+              <section className="card-border p-5">
+                <h2 className="text-sm font-semibold mb-3">Key 消耗</h2>
+                <ApiKeyTable data={apiKeys} />
+              </section>
+            </div>
+
+            {/* Quota panel */}
+            <section className="card-border p-5 w-full">
+              <h2 className="text-sm font-semibold mb-3">账号余量</h2>
+              <QuotaPanel data={quotas} />
             </section>
-          </div>
-
-          <section className="card-border p-5 w-full">
-            <h2 className="text-sm font-semibold mb-3">账号余量</h2>
-            <QuotaPanel data={quotas} />
-          </section>
-        </div>
-
-        {/* Request feed */}
-        <section className="card-border p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">最近请求</h2>
-            {requests.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {requests.length} 条
-              </span>
-            )}
-          </div>
-          <RequestFeed data={requests} />
-        </section>
+          </>
+        )}
 
         {/* Empty state */}
         {empty && !loading && (
@@ -243,7 +280,7 @@ export default function DashboardPage() {
       <footer className="sticky bottom-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border py-3 px-6">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-3">
-            <span>CLIProxyAPI Dashboard v0.2.0</span>
+            <span>CLIProxyAPI Dashboard v1.0.0</span>
             {health && (
               <span className={cn(
                 "flex items-center gap-1",

@@ -14,7 +14,7 @@ export const ApiKeyTable = memo(function ApiKeyTable({ data }: ApiKeyTableProps)
   }
 
   return (
-    <div className="overflow-auto max-h-[300px]">
+    <div className="overflow-auto max-h-[300px] scrollbar-hide">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-card z-10">
           <tr>
