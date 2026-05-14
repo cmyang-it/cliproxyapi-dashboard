@@ -1,47 +1,63 @@
 name: Build and Push Docker Image
 
-# 触发条件：推送 v 开头的标签，如 v1.0.0
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-and-push:
     runs-on: local-runner
 
-    steps:
-      # 步骤1：检出代码（直接用 git clone，不依赖 actions/checkout）
-      - name: Checkout code
-        run: |
-          git clone --depth 1 --branch "${{ github.ref_name }}" \
-            "${{ github.server_url }}/${{ github.repository }}.git" .
-          git log -1 --oneline
+    env:
+      IMAGE_NAME: cliproxyapi-dashboard
+      WORKDIR: source
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+      REF_NAME: ${{ github.ref_name }}
 
-      # 步骤2：设置多架构构建环境（QEMU + Buildx）
+    steps:
+      - name: Check runner dependencies
+        run: |
+          set -eu
+          for cmd in git docker; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              echo "Missing required command: $cmd"
+              exit 1
+            fi
+          done
+          docker version
+          docker buildx version
+
+      - name: Checkout code without Node actions
+        run: |
+          set -eu
+          rm -rf "$WORKDIR"
+          git clone --depth 1 --branch "$REF_NAME" "$REPO_URL" "$WORKDIR"
+          git -C "$WORKDIR" log -1 --oneline
+
       - name: Set up multi-arch build
         run: |
-          # 注册 QEMU 二进制，支持跨架构模拟
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          # 创建或复用 buildx builder
-          docker buildx create --name multiarch --use 2>/dev/null || docker buildx use multiarch
+          set -eu
+          docker run --rm --privileged tonistiigi/binfmt --install amd64,arm64
+          docker buildx create --name cliproxyapi-builder --driver docker-container --use 2>/dev/null \
+            || docker buildx use cliproxyapi-builder
           docker buildx inspect --bootstrap
 
-      # 步骤3：登录 Docker Hub
       - name: Login to Docker Hub
         run: |
+          set -eu
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
             docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      # 步骤4：构建并推送多架构镜像
       - name: Build and push Docker image
         run: |
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/cliproxyapi-dashboard"
-          TAG="${{ github.ref_name }}"
+          set -eu
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${IMAGE_NAME}"
 
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --tag "${IMAGE}:${TAG}" \
+            --tag "${IMAGE}:${REF_NAME}" \
             --tag "${IMAGE}:latest" \
             --push \
-            -f Dockerfile .
+            -f "${WORKDIR}/Dockerfile" \
+            "${WORKDIR}"
