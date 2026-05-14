@@ -22,6 +22,8 @@ jobs:
           for cmd in git docker; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               echo "Missing required command: $cmd"
+              echo "This workflow builds and pushes Docker images, so the Gitea runner must run on a host with Docker CLI + Docker daemon access."
+              echo "Fix the runner environment first: install Docker on the runner host, or point runs-on to a Docker-capable runner label."
               exit 1
             fi
           done
