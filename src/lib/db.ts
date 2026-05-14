@@ -361,17 +361,22 @@ export function queryRecentRequests(limit: number): RecentRequest[] {
   return rows
 }
 
-export function queryLatestQuotas(): QuotaSnapshot[] {
+export function queryLatestQuotas(): Omit<QuotaSnapshot, "raw_json">[] {
   const db = getDb()
   return db
     .prepare(
-      `SELECT q.* FROM quota_snapshots q
-      JOIN (
-        SELECT email, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY email
-      ) latest ON latest.email = q.email AND latest.ts = q.ts_epoch
-      ORDER BY email`
+      `SELECT q.id, q.timestamp, q.ts_epoch, q.email, q.plan,
+              q.allowed, q.limit_reached,
+              q.primary_used_percent, q.primary_remaining_percent, q.primary_reset_at,
+              q.secondary_used_percent, q.secondary_remaining_percent, q.secondary_reset_at,
+              q.credits_balance
+       FROM quota_snapshots q
+       JOIN (
+         SELECT email, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY email
+       ) latest ON latest.email = q.email AND latest.ts = q.ts_epoch
+       ORDER BY q.email`
     )
-    .all() as QuotaSnapshot[]
+    .all() as Omit<QuotaSnapshot, "raw_json">[]
 }
 
 export function getEventCount(): number {

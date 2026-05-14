@@ -78,6 +78,8 @@ docker run -d \
   -e QUOTA_REFRESH_SECONDS="${QUOTA_REFRESH_SECONDS:-300}" \
   -e SOCKS5_PROXY_HOST="${SOCKS5_PROXY_HOST:-}" \
   -e SOCKS5_PROXY_PORT="${SOCKS5_PROXY_PORT:-0}" \
+  -e SOCKS5_PROXY_USERNAME="${SOCKS5_PROXY_USERNAME:-}" \
+  -e SOCKS5_PROXY_PASSWORD="${SOCKS5_PROXY_PASSWORD:-}" \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/auths:/app/auths:ro" \
   xiyangai/cliproxyapi-dashboard:latest
@@ -101,6 +103,8 @@ Open `http://localhost:8320` in your browser.
 | `AUTH_DIR` | — | Codex OAuth directory (optional, for quota queries) |
 | `SOCKS5_PROXY_HOST` | — | SOCKS5 proxy host for quota fetching |
 | `SOCKS5_PROXY_PORT` | `0` | SOCKS5 proxy port (0 = disabled) |
+| `SOCKS5_PROXY_USERNAME` | — | SOCKS5 proxy username (optional; must be set together with password) |
+| `SOCKS5_PROXY_PASSWORD` | — | SOCKS5 proxy password (optional; must be set together with username) |
 
 > **Prefer `CLIPROXY_URL`**: set `http://127.0.0.1:8317` — the system auto-parses protocol, host, and port. Legacy `CLIPROXY_HOST` + `CLIPROXY_PORT` are still supported.
 

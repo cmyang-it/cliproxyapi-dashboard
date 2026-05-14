@@ -84,6 +84,8 @@ docker run -d \
   -e QUOTA_REFRESH_SECONDS="${QUOTA_REFRESH_SECONDS:-300}" \
   -e SOCKS5_PROXY_HOST="${SOCKS5_PROXY_HOST:-}" \
   -e SOCKS5_PROXY_PORT="${SOCKS5_PROXY_PORT:-0}" \
+  -e SOCKS5_PROXY_USERNAME="${SOCKS5_PROXY_USERNAME:-}" \
+  -e SOCKS5_PROXY_PASSWORD="${SOCKS5_PROXY_PASSWORD:-}" \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/auths:/app/auths:ro" \
   xiyangai/cliproxyapi-dashboard:latest
@@ -107,6 +109,8 @@ docker run -d \
 | `AUTH_DIR` | — | Codex OAuth 文件目录（可选，用于余量查询） |
 | `SOCKS5_PROXY_HOST` | — | 余量查询代理地址 |
 | `SOCKS5_PROXY_PORT` | `0` | 余量查询代理端口（0 = 禁用） |
+| `SOCKS5_PROXY_USERNAME` | — | 代理用户名（可选，与密码同时配置） |
+| `SOCKS5_PROXY_PASSWORD` | — | 代理密码（可选，与用户名同时配置） |
 
 > **推荐使用 `CLIPROXY_URL`**：填写 `http://127.0.0.1:8317`，系统自动解析协议、主机和端口。旧版 `CLIPROXY_HOST` + `CLIPROXY_PORT` 仍兼容。
 

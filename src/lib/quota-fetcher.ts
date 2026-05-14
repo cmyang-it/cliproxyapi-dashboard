@@ -114,13 +114,13 @@ function readAuthFiles(): AuthEntry[] {
 // Fetch & persist
 // ---------------------------------------------------------------------------
 
-async function refreshSingleAccount(entry: AuthEntry): Promise<void> {
+async function refreshSingleAccount(entry: AuthEntry): Promise<boolean> {
   const provider = findProvider(entry.data, entry.filepath)
   if (!provider) {
     console.warn(
       `[quota] No matching provider for ${path.basename(entry.filepath)} (type=${entry.data.type || "unknown"})`,
     )
-    return
+    return false
   }
 
   const label = entry.data.email || path.basename(entry.filepath)
@@ -133,11 +133,17 @@ async function refreshSingleAccount(entry: AuthEntry): Promise<void> {
         ? `primary=${result.primaryUsedPct}%`
         : `secondary=${result.secondaryUsedPct}%`
     console.log(`[quota] ✓ ${label} (${provider.type}): ${secLabel}`)
+    return true
   } catch (err) {
-    console.warn(
-      `[quota] ✗ ${label}: ${err instanceof Error ? err.message : err}`,
-    )
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[quota] ✗ ${label} (${provider.type}): ${sanitizeQuotaError(msg)}`)
+    return false
   }
+}
+
+function sanitizeQuotaError(message: string): string {
+  if (/^HTTP \d{3}\b/.test(message)) return message.match(/^HTTP \d{3}/)?.[0] || "HTTP error"
+  return message.replace(/[\r\n]/g, " ").slice(0, 300)
 }
 
 // ---------------------------------------------------------------------------
@@ -152,19 +158,33 @@ async function refreshSingleAccount(entry: AuthEntry): Promise<void> {
  * @returns Number of accounts that were successfully refreshed.
  */
 export async function refreshAllQuotas(): Promise<number> {
+  const s = qstate()
+
+  // Re-entry guard: skip if a previous round is still in-flight.
+  // Prevents overlapping refreshes that could trigger provider rate limits
+  // and pile up SOCKS5 connections.
+  if (s.refreshing) {
+    console.warn("[quota] Previous refresh still in progress — skipping this round")
+    return 0
+  }
+
   if (!env.authDir) return 0
 
   const entries = readAuthFiles()
   if (entries.length === 0) return 0
 
+  s.refreshing = true
   let refreshed = 0
-  for (const entry of entries) {
-    try {
-      await refreshSingleAccount(entry)
-      refreshed++
-    } catch {
-      // Already logged inside refreshSingleAccount
+  try {
+    for (const entry of entries) {
+      try {
+        if (await refreshSingleAccount(entry)) refreshed++
+      } catch {
+        // Already logged inside refreshSingleAccount
+      }
     }
+  } finally {
+    s.refreshing = false
   }
 
   return refreshed
@@ -180,12 +200,13 @@ const QKEY = "__cliproxydash_quota"
 interface QuotaState {
   running: boolean
   handle: ReturnType<typeof setInterval> | null
+  refreshing: boolean
 }
 
 function qstate(): QuotaState {
   const G = globalThis as Record<string, unknown>
   if (!G[QKEY]) {
-    G[QKEY] = { running: false, handle: null }
+    G[QKEY] = { running: false, handle: null, refreshing: false }
   }
   return G[QKEY] as QuotaState
 }
@@ -202,16 +223,26 @@ export function startQuotaFetcher(): void {
     return
   }
 
+  // Validate interval: reject <= 0, NaN, or unreasonably small values
+  let intervalSec = env.quotaRefreshSeconds
+  if (!Number.isFinite(intervalSec) || intervalSec < 60) {
+    console.warn(
+      `[quota] QUOTA_REFRESH_SECONDS=${env.quotaRefreshSeconds} is too small or invalid — using safe default 300s`
+    )
+    intervalSec = 300
+  }
+
   s.running = true
-  const intervalMs = env.quotaRefreshSeconds * 1000
+  const intervalMs = intervalSec * 1000
 
   console.log(
-    `[quota] Quota fetcher started — refresh every ${env.quotaRefreshSeconds}s`,
+    `[quota] Quota fetcher started — refresh every ${intervalSec}s`,
   )
 
   // Log proxy configuration at startup for diagnostics
   if (env.socks5ProxyHost && env.socks5ProxyPort > 0) {
-    console.log(`[quota] SOCKS5 proxy: ${env.socks5ProxyHost}:${env.socks5ProxyPort}`)
+    const authInfo = env.socks5ProxyUsername ? " (auth enabled)" : ""
+    console.log(`[quota] SOCKS5 proxy: ${env.socks5ProxyHost}:${env.socks5ProxyPort}${authInfo}`)
   } else {
     console.log("[quota] SOCKS5 proxy: disabled (direct connection will be used)")
   }

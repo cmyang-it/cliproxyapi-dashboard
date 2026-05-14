@@ -51,6 +51,10 @@ export const env = {
   socks5ProxyHost: (process.env.SOCKS5_PROXY_HOST || "").trim(),
   /** SOCKS5 proxy port (default 0 = disabled) */
   socks5ProxyPort: parseInt(process.env.SOCKS5_PROXY_PORT || "0", 10),
+  /** SOCKS5 username (optional — if empty, no auth is used) */
+  socks5ProxyUsername: process.env.SOCKS5_PROXY_USERNAME || "",
+  /** SOCKS5 password (optional) */
+  socks5ProxyPassword: process.env.SOCKS5_PROXY_PASSWORD || "",
 
   /** Dashboard access key (empty = auth disabled) */
   accessKey: process.env.ACCESS_KEY || "",

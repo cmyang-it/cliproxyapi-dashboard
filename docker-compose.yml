@@ -16,6 +16,8 @@ services:
       - QUOTA_REFRESH_SECONDS=${QUOTA_REFRESH_SECONDS:-300}
       - SOCKS5_PROXY_HOST=${SOCKS5_PROXY_HOST:-}
       - SOCKS5_PROXY_PORT=${SOCKS5_PROXY_PORT:-0}
+      - SOCKS5_PROXY_USERNAME=${SOCKS5_PROXY_USERNAME:-}
+      - SOCKS5_PROXY_PASSWORD=${SOCKS5_PROXY_PASSWORD:-}
     volumes:
       - ./data:/app/data  # sqlite
       - ./auths:/app/auths:ro  # Codex OAuth files
