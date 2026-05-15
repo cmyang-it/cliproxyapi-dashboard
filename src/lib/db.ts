@@ -342,15 +342,27 @@ export function queryByHour(range: string): HourRow[] {
     .all(start, end) as HourRow[]
 }
 
-export function queryRecentRequests(limit: number): RecentRequest[] {
+export function queryRecentRequests(limit: number, range?: string): RecentRequest[] {
   const db = getDb()
-  const rows = db
-    .prepare(
-      `SELECT timestamp, source, auth_index, model, endpoint, failed, latency_ms,
-        input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, request_id
-      FROM usage_events ORDER BY ts_epoch DESC LIMIT ?`
-    )
-    .all(limit) as RecentRequest[]
+  let rows: RecentRequest[]
+  if (range) {
+    const { start, end } = getRangeBounds(range)
+    rows = db
+      .prepare(
+        `SELECT timestamp, source, auth_index, model, endpoint, failed, latency_ms,
+          input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, request_id
+        FROM usage_events WHERE ts_epoch BETWEEN ? AND ? ORDER BY ts_epoch DESC LIMIT ?`
+      )
+      .all(start, end, limit) as RecentRequest[]
+  } else {
+    rows = db
+      .prepare(
+        `SELECT timestamp, source, auth_index, model, endpoint, failed, latency_ms,
+          input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, request_id
+        FROM usage_events ORDER BY ts_epoch DESC LIMIT ?`
+      )
+      .all(limit) as RecentRequest[]
+  }
 
   for (const row of rows) {
     const d = new Date(row.timestamp)

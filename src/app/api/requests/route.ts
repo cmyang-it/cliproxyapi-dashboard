@@ -9,7 +9,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const limit = Math.min(500, parseInt(searchParams.get("limit") || "100", 10))
+  const range = searchParams.get("range") || undefined
 
-  const requests = queryRecentRequests(limit)
+  const requests = queryRecentRequests(limit, range)
   return NextResponse.json({ requests })
 }

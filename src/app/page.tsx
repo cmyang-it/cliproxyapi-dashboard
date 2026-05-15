@@ -37,7 +37,7 @@ export default function DashboardPage() {
       const [summaryRes, quotaRes, reqRes] = await Promise.all([
         fetch(`/api/summary?range=${currentRange}`),
         fetch("/api/quota"),
-        fetch("/api/requests?limit=120"),
+        fetch(`/api/requests?limit=120&range=${currentRange}`),
       ])
 
       if (summaryRes.ok) {
@@ -226,24 +226,6 @@ export default function DashboardPage() {
               </section>
             </div>
 
-            {/* Request feed */}
-            <section className="card-border p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold">最近请求</h2>
-                {requests.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {requests.length} 条
-                  </span>
-                )}
-              </div>
-              <RequestFeed data={requests} />
-            </section>
-          </>
-        )}
-
-        {/* --- Details Tab --- */}
-        {tab === "details" && (
-          <>
             {/* Tables row: 账号消耗 + Key消耗 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <section className="card-border p-5">
@@ -255,11 +237,29 @@ export default function DashboardPage() {
                 <ApiKeyTable data={apiKeys} />
               </section>
             </div>
+          </>
+        )}
 
+        {/* --- Details Tab --- */}
+        {tab === "details" && (
+          <>
             {/* Quota panel */}
             <section className="card-border p-5 w-full">
               <h2 className="text-sm font-semibold mb-3">账号余量</h2>
               <QuotaPanel data={quotas} />
+            </section>
+
+            {/* Request feed */}
+            <section className="card-border p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold">最近请求</h2>
+                {requests.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {requests.length} 条
+                  </span>
+                )}
+              </div>
+              <RequestFeed data={requests} />
             </section>
           </>
         )}

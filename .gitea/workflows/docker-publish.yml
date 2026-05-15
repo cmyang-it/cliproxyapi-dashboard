@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: local-runner
+    runs-on: fnos-runner
 
     steps:
       # 步骤1：检出代码
