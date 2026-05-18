@@ -24,6 +24,8 @@ jobs:
       # 步骤3：设置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       # 步骤4：登录 Docker Hub
       - name: Login to Docker Hub
