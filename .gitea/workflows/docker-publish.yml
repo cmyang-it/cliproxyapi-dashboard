@@ -21,18 +21,9 @@ jobs:
         with:
           platforms: all
 
-      # 步骤3：设置 Docker Buildx（核心：通过 driver-opts 给后台守护进程注入代理）
+      # 步骤3：设置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-            env.http_proxy=socks5://192.168.100.10:10800
-            env.https_proxy=socks5://192.168.100.10:10800
-            env.all_proxy=socks5://192.168.100.10:10800
-            env.HTTP_PROXY=socks5://192.168.100.10:10800
-            env.HTTPS_PROXY=socks5://192.168.100.10:10800
-            env.ALL_PROXY=socks5://192.168.100.10:10800
 
       # 步骤4：登录 Docker Hub
       - name: Login to Docker Hub
@@ -51,7 +42,7 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest
 
-      # 步骤6：构建并推送 Docker 镜像（通过 build-args 给 Dockerfile 内部注入代理）
+      # 步骤6：构建并推送 Docker 镜像
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -61,8 +52,3 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # 补全 ALL_PROXY，防止内部 npm install 等命令对 socks5 协议识别失败
-          build-args: |
-            HTTP_PROXY=socks5://192.168.100.10:10800
-            HTTPS_PROXY=socks5://192.168.100.10:10800
-            ALL_PROXY=socks5://192.168.100.10:10800
