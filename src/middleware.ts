@@ -13,8 +13,7 @@ function simpleHash(s: string): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Only protect API routes, skip auth endpoint itself
-  if (!pathname.startsWith("/api/") || pathname === "/api/auth") {
+  if (pathname === "/api/auth" || pathname === "/login") {
     return NextResponse.next()
   }
 
@@ -27,12 +26,19 @@ export function middleware(request: NextRequest) {
   const expected = simpleHash(accessKey)
 
   if (token !== expected) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = "/login"
+    loginUrl.search = ""
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: ["/", "/api/:path*"],
 }

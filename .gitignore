@@ -2,6 +2,7 @@
 node_modules/
 .next/
 .deepseek/
+.claude/
 
 # Environment
 .env

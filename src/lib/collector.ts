@@ -50,10 +50,18 @@ export function startCollector(): void {
     return
   }
 
+  let intervalSec = env.pollIntervalSeconds
+  if (!Number.isFinite(intervalSec) || intervalSec < 1) {
+    console.warn(
+      `[collector] POLL_INTERVAL_SECONDS=${env.pollIntervalSeconds} is too small or invalid — using safe default 2s`
+    )
+    intervalSec = 2
+  }
+
   s.running = true
   const url = `${env.apiBaseUrl}/v0/management/usage-queue?count=100`
 
-  console.log(`[collector] Polling ${url} every ${env.pollIntervalSeconds}s`)
+  console.log(`[collector] Polling ${url} every ${intervalSec}s`)
 
   const poll = async () => {
     try {
@@ -90,7 +98,7 @@ export function startCollector(): void {
 
   // poll immediately, then on interval
   poll()
-  s.handle = setInterval(poll, env.pollIntervalSeconds * 1000)
+  s.handle = setInterval(poll, intervalSec * 1000)
 }
 
 export function stopCollector(): void {

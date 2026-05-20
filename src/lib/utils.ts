@@ -32,10 +32,10 @@ export function fmtTime(iso: string): string {
 
 export const RANGE_OPTIONS = [
   { value: "today", label: "今天" },
-  { value: "1h", label: "最近 1 小时" },
-  { value: "5h", label: "最近 5 小时" },
   { value: "24h", label: "最近 24 小时" },
   { value: "7d", label: "最近 7 天" },
+  { value: "15d", label: "最近 15 天" },
+  { value: "30d", label: "最近 30 天" },
 ] as const
 
 export type RangeOption = (typeof RANGE_OPTIONS)[number]["value"]

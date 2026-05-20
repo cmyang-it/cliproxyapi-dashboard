@@ -153,7 +153,7 @@ export function insertUsageBatch(items: unknown[]): number {
       const tokens = (payload as Record<string, Record<string, number>>).tokens || {}
       const apiKey = String((payload as Record<string, string>).api_key || "")
 
-      stmt.run({
+      const result = stmt.run({
         event_key: eventKey,
         timestamp: ts.toISOString(),
         ts_epoch: ts.getTime() / 1000,
@@ -177,7 +177,7 @@ export function insertUsageBatch(items: unknown[]): number {
         total_tokens: tokens.total_tokens || 0,
         raw_json: raw,
       })
-      inserted++
+      inserted += result.changes
     }
   })
 
@@ -230,25 +230,27 @@ export function insertQuotaSnapshot(data: {
 export function getRangeBounds(range: string): { start: number; end: number } {
   const nowEpoch = Date.now() / 1000
   const tzOffset = 8 * 3600 // Asia/Shanghai in seconds
+  const shanghaiDay = Math.floor((nowEpoch + tzOffset) / 86400)
   let start: number
 
   switch (range) {
-    case "1h":
-      start = nowEpoch - 3600
-      break
-    case "5h":
-      start = nowEpoch - 5 * 3600
+    case "7h":
+      start = nowEpoch - 7 * 3600
       break
     case "24h":
       start = nowEpoch - 24 * 3600
       break
     case "7d":
-      start = nowEpoch - 7 * 24 * 3600
+      start = (shanghaiDay - 6) * 86400 - tzOffset
       break
-    default: { // today — midnight in Asia/Shanghai, expressed as UTC epoch
-      const shanghaiDay = Math.floor((nowEpoch + tzOffset) / 86400)
+    case "15d":
+      start = (shanghaiDay - 14) * 86400 - tzOffset
+      break
+    case "30d":
+      start = (shanghaiDay - 29) * 86400 - tzOffset
+      break
+    default:
       start = shanghaiDay * 86400 - tzOffset
-    }
   }
 
   return { start, end: nowEpoch }
@@ -329,6 +331,24 @@ export function queryByApiKey(range: string): ApiKeyRow[] {
 export function queryByHour(range: string): HourRow[] {
   const db = getDb()
   const { start, end } = getRangeBounds(range)
+
+  if (range === "7d" || range === "15d" || range === "30d") {
+    const rows = db
+      .prepare(
+        `SELECT
+          local_date as hour,
+          COUNT(*) as requests,
+          COALESCE(SUM(total_tokens),0) as total_tokens,
+          COALESCE(SUM(failed),0) as failed
+        FROM usage_events WHERE ts_epoch BETWEEN ? AND ?
+        GROUP BY local_date ORDER BY local_date`
+      )
+      .all(start, end) as HourRow[]
+
+    const days = range === "30d" ? 30 : range === "15d" ? 15 : 7
+    return fillDayBuckets(rows, days)
+  }
+
   return db
     .prepare(
       `SELECT
@@ -393,6 +413,24 @@ export function queryLatestQuotas(): Omit<QuotaSnapshot, "raw_json">[] {
        ORDER BY q.email`
     )
     .all() as Omit<QuotaSnapshot, "raw_json">[]
+}
+
+function fillDayBuckets(rows: HourRow[], days: number): HourRow[] {
+  const byDate = new Map(rows.map((row) => [row.hour, row]))
+  const tzOffset = 8 * 3600
+  const nowEpoch = Date.now() / 1000
+  const shanghaiDay = Math.floor((nowEpoch + tzOffset) / 86400)
+
+  return Array.from({ length: days }, (_, index) => {
+    const day = shanghaiDay - (days - 1 - index)
+    const date = new Date(day * 86400 * 1000).toISOString().slice(0, 10)
+    return byDate.get(date) || {
+      hour: date,
+      requests: 0,
+      total_tokens: 0,
+      failed: 0,
+    }
+  })
 }
 
 export function getEventCount(): number {

@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [quotas, setQuotas] = useState<QuotaSnapshot[]>([])
   const [requests, setRequests] = useState<RecentRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshError, setRefreshError] = useState("")
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[]>([])
   const [updated, setUpdated] = useState("")
   const [health, setHealth] = useState<{ events: number; uptime: number; collector: string; lastPollAt: string | null; pollIntervalSeconds: number } | null>(null)
@@ -33,32 +34,45 @@ export default function DashboardPage() {
   const [authChecked, setAuthChecked] = useState(false)
 
   const fetchData = useCallback(async (currentRange: string) => {
+    setRefreshError("")
     try {
-      const [summaryRes, quotaRes, reqRes] = await Promise.all([
+      const [summaryRes, quotaRes, reqRes, healthRes] = await Promise.all([
         fetch(`/api/summary?range=${currentRange}`),
         fetch("/api/quota"),
         fetch(`/api/requests?limit=120&range=${currentRange}`),
+        fetch("/api/health"),
       ])
 
-      if (summaryRes.ok) {
-        const d = await summaryRes.json()
-        setSummary(d.summary)
-        setAccounts(d.accounts)
-        setModels(d.models)
-        setApiKeys(d.apiKeys || [])
-        setHours(d.hours)
+      const failed = [
+        { label: "汇总数据", response: summaryRes },
+        { label: "账号余量", response: quotaRes },
+        { label: "请求明细", response: reqRes },
+        { label: "采集状态", response: healthRes },
+      ].find(({ response }) => !response.ok)
+
+      if (failed) {
+        throw new Error(`${failed.label}请求失败（HTTP ${failed.response.status}）`)
       }
-      if (quotaRes.ok) {
-        const d = await quotaRes.json()
-        setQuotas(d.quotas)
-      }
-      if (reqRes.ok) {
-        const d = await reqRes.json()
-        setRequests(d.requests)
-      }
+
+      const [summaryData, quotaData, requestData, healthData] = await Promise.all([
+        summaryRes.json(),
+        quotaRes.json(),
+        reqRes.json(),
+        healthRes.json(),
+      ])
+
+      setSummary(summaryData.summary)
+      setAccounts(summaryData.accounts)
+      setModels(summaryData.models)
+      setApiKeys(summaryData.apiKeys || [])
+      setHours(summaryData.hours)
+      setQuotas(quotaData.quotas)
+      setRequests(requestData.requests)
+      setHealth(healthData)
       setUpdated(new Date().toLocaleTimeString("zh-CN"))
-    } catch {
-      // silent fail — retain old data
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "刷新失败，请稍后重试"
+      setRefreshError(message)
     } finally {
       setLoading(false)
     }
@@ -80,19 +94,14 @@ export default function DashboardPage() {
     fetchData(range)
   }, [range, fetchData])
 
-  // Auto-refresh every 10s
+  // Auto-refresh with collector interval
   useEffect(() => {
-    const timer = setInterval(() => fetchData(range), 10000)
+    const intervalSeconds = health?.pollIntervalSeconds && health.pollIntervalSeconds > 0
+      ? health.pollIntervalSeconds
+      : 10
+    const timer = setInterval(() => fetchData(range), intervalSeconds * 1000)
     return () => clearInterval(timer)
-  }, [range, fetchData])
-
-  // Health check
-  useEffect(() => {
-    fetch("/api/health")
-      .then((r) => r.json())
-      .then(setHealth)
-      .catch(() => {})
-  }, [])
+  }, [range, fetchData, health?.pollIntervalSeconds])
 
   if (!authChecked) {
     return null
@@ -193,6 +202,13 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <main className="flex-1 max-w-[1440px] mx-auto px-4 md:px-6 py-6 space-y-6 w-full">
+        {refreshError && (
+          <div className="card-border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <div>数据刷新失败：{refreshError}</div>
+            <div className="mt-1 text-xs text-muted-foreground">已保留上一次成功加载的数据。</div>
+          </div>
+        )}
+
         {/* --- Home Tab --- */}
         {tab === "home" && (
           <>
@@ -200,20 +216,20 @@ export default function DashboardPage() {
             {summary && <KpiCards data={summary} />}
 
             {/* Charts row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <section className="card-border p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+              <section className="card-border p-5 h-full flex flex-col">
                 <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-primary" />
-                  按小时消耗
+                  {range === "7d" || range === "15d" || range === "30d" ? "按日期消耗" : "按小时消耗"}
                 </h2>
                 {loading && !hours.length ? (
                   <Skeleton />
                 ) : (
-                  <TokenChart data={hours} />
+                  <TokenChart data={hours} className="flex-1 min-h-[260px]" />
                 )}
               </section>
 
-              <section className="card-border p-5">
+              <section className="card-border p-5 h-full">
                 <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <BarChartIcon className="w-4 h-4 text-primary" />
                   模型消耗分布
@@ -280,7 +296,7 @@ export default function DashboardPage() {
       <footer className="sticky bottom-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border py-3 px-6">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-3">
-            <span>CLIProxyAPI Dashboard v1.0.0</span>
+            <span>CLIProxyAPI Dashboard v1.1.0</span>
             {health && (
               <span className={cn(
                 "flex items-center gap-1",

@@ -36,7 +36,6 @@ export const ModelChart = memo(function ModelChart({ data }: ModelChartProps) {
 
   const sorted = [...data].sort((a, b) => b.total_tokens - a.total_tokens)
   const totalTokens = data.reduce((sum, d) => sum + d.total_tokens, 0)
-  const totalRequests = data.reduce((sum, d) => sum + d.requests, 0)
   const visible = sorted.slice(0, 9)
   const rest = sorted.slice(9)
   const maxTokens = Math.max(sorted[0]?.total_tokens ?? 0, 1)
@@ -57,35 +56,8 @@ export const ModelChart = memo(function ModelChart({ data }: ModelChartProps) {
     })
   }
 
-  const top = sorted[0]
-
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border/70 bg-secondary/20 px-4 py-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-1">
-              模型消耗分布
-            </div>
-            <div className="text-sm font-semibold truncate" title={top.model}>
-              {top.model}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              最高消耗 · {fmt(top.requests)} 次请求
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="text-lg font-semibold tabular-nums leading-none">
-              {fmt(totalTokens)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Token · {fmt(totalRequests)} 次
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2.5">
+    <div className="space-y-2.5">
         {rows.map((model, index) => {
           const [start, end] = model.color
           const tokenPct = totalTokens > 0 ? (model.total_tokens / totalTokens) * 100 : 0
@@ -150,7 +122,6 @@ export const ModelChart = memo(function ModelChart({ data }: ModelChartProps) {
             </div>
           )
         })}
-      </div>
     </div>
   )
 })

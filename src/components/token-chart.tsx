@@ -10,16 +10,17 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-import { fmt } from "@/lib/utils"
+import { cn, fmt } from "@/lib/utils"
 import type { HourRow } from "@/lib/types"
 
 interface TokenChartProps {
   data: HourRow[]
+  className?: string
 }
 
-export const TokenChart = memo(function TokenChart({ data }: TokenChartProps) {
+export const TokenChart = memo(function TokenChart({ data, className }: TokenChartProps) {
   if (!data.length) {
-    return <div className="text-muted-foreground text-sm py-8 text-center">暂无数据</div>
+    return <div className={cn("text-muted-foreground text-sm py-8 text-center", className)}>暂无数据</div>
   }
 
   const chartData = data.map((d) => ({
@@ -30,8 +31,9 @@ export const TokenChart = memo(function TokenChart({ data }: TokenChartProps) {
   }))
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+    <div className={cn("h-[260px]", className)}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
         <XAxis
           dataKey="time"
@@ -67,7 +69,8 @@ export const TokenChart = memo(function TokenChart({ data }: TokenChartProps) {
           radius={[3, 3, 0, 0]}
           maxBarSize={40}
         />
-      </BarChart>
-    </ResponsiveContainer>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   )
 })
