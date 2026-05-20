@@ -397,7 +397,7 @@ export function queryRecentRequests(limit: number, range?: string): RecentReques
   return rows
 }
 
-export function queryLatestQuotas(): Omit<QuotaSnapshot, "raw_json">[] {
+export function queryLatestQuotas(): QuotaSnapshot[] {
   const db = getDb()
   return db
     .prepare(
@@ -405,14 +405,14 @@ export function queryLatestQuotas(): Omit<QuotaSnapshot, "raw_json">[] {
               q.allowed, q.limit_reached,
               q.primary_used_percent, q.primary_remaining_percent, q.primary_reset_at,
               q.secondary_used_percent, q.secondary_remaining_percent, q.secondary_reset_at,
-              q.credits_balance
+              q.credits_balance, q.raw_json
        FROM quota_snapshots q
        JOIN (
          SELECT email, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY email
        ) latest ON latest.email = q.email AND latest.ts = q.ts_epoch
        ORDER BY q.email`
     )
-    .all() as Omit<QuotaSnapshot, "raw_json">[]
+    .all() as QuotaSnapshot[]
 }
 
 function fillDayBuckets(rows: HourRow[], days: number): HourRow[] {

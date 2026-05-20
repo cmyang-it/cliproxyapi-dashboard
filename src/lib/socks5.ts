@@ -280,6 +280,19 @@ export function httpsGet(
   timeoutMs: number,
   maxBodySize = 1_048_576,
 ): Promise<{ status: number; body: string }> {
+  return httpsRequest(tlsSocket, hostname, path, "GET", headers, undefined, timeoutMs, maxBodySize)
+}
+
+function httpsRequest(
+  tlsSocket: tls.TLSSocket,
+  hostname: string,
+  path: string,
+  method: string,
+  headers: Record<string, string>,
+  body: string | undefined,
+  timeoutMs: number,
+  maxBodySize = 1_048_576,
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     let settled = false
     const chunks: Buffer[] = []
@@ -342,17 +355,19 @@ export function httpsGet(
     tlsSocket.once("close", onClose)
     tlsSocket.once("error", onError)
 
-    tlsSocket.write(buildHttpRequest(hostname, path, headers))
+    tlsSocket.write(buildHttpRequest(hostname, path, method, headers, body))
   })
 }
 
 function buildHttpRequest(
   hostname: string,
   path: string,
+  method: string,
   headers: Record<string, string>,
+  body?: string,
 ): string {
   const lines = [
-    `GET ${path || "/"} HTTP/1.1`,
+    `${method} ${path || "/"} HTTP/1.1`,
     `Host: ${hostname}`,
     "Connection: close",
     "Accept-Encoding: identity",
@@ -365,7 +380,7 @@ function buildHttpRequest(
     lines.push(`${safeName}: ${safeValue}`)
   }
 
-  return `${lines.join("\r\n")}\r\n\r\n`
+  return `${lines.join("\r\n")}\r\n\r\n${body || ""}`
 }
 
 function parseHttpResponse(response: Buffer): { status: number; body: string } {
@@ -429,11 +444,49 @@ export async function fetchHttpsJson(
   headers: Record<string, string>,
   timeoutMs = 15000,
 ): Promise<unknown> {
+  return requestHttpsJson(url, "GET", headers, undefined, timeoutMs)
+}
+
+export async function postHttpsJson(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  timeoutMs = 15000,
+): Promise<unknown> {
+  const bodyText = JSON.stringify(body ?? {})
+  return requestHttpsJson(url, "POST", {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(bodyText, "utf-8").toString(),
+    ...headers,
+  }, bodyText, timeoutMs)
+}
+
+export async function postHttpsFormJson(
+  url: string,
+  headers: Record<string, string>,
+  form: Record<string, string>,
+  timeoutMs = 15000,
+): Promise<unknown> {
+  const bodyText = new URLSearchParams(form).toString()
+  return requestHttpsJson(url, "POST", {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Content-Length": Buffer.byteLength(bodyText, "utf-8").toString(),
+    ...headers,
+  }, bodyText, timeoutMs)
+}
+
+async function requestHttpsJson(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  bodyText: string | undefined,
+  timeoutMs: number,
+): Promise<unknown> {
   const u = new URL(url)
 
   // Security: only HTTPS targets are supported (all provider URLs are hardcoded)
   if (u.protocol !== "https:") {
-    throw new Error(`fetchHttpsJson only supports HTTPS URLs, got ${u.protocol}`)
+    throw new Error(`requestHttpsJson only supports HTTPS URLs, got ${u.protocol}`)
   }
 
   const hostname = u.hostname
@@ -504,7 +557,7 @@ export async function fetchHttpsJson(
       proxyAuth,
     )
     try {
-      const res = await httpsGet(tlsSocket, hostname, path, headers, timeoutMs, MAX_BODY)
+      const res = await httpsRequest(tlsSocket, hostname, path, method, headers, bodyText, timeoutMs, MAX_BODY)
       status = res.status
       body = res.body
     } finally {
@@ -512,7 +565,9 @@ export async function fetchHttpsJson(
     }
   } else {
     const resp = await fetch(url, {
+      method,
       headers,
+      body: bodyText,
       signal: AbortSignal.timeout(timeoutMs),
     })
     status = resp.status

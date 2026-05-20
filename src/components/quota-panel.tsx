@@ -48,6 +48,8 @@ export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
 
 function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
   const q = quota
+  const geminiBuckets = parseGeminiBuckets(q)
+  const resetAt = earliestResetAt(geminiBuckets) || q.primary_reset_at
   const blocked = !q.allowed || !!q.limit_reached
   const badge = providerBadge(q.provider)
 
@@ -100,16 +102,18 @@ function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
             )}
           </span>
           {/* Reset time next to status */}
-          {q.primary_reset_at && (
+          {resetAt && (
             <span className="text-[10px] tabular-nums text-muted-foreground/60 shrink-0">
-              {formatShort(q.primary_reset_at)}
+              {formatShort(resetAt)}
             </span>
           )}
         </span>
       </div>
 
       {/* Quota bars — per-provider semantics */}
-      {q.provider === "codex" ? (
+      {geminiBuckets.length > 0 ? (
+        <GeminiQuotaBuckets buckets={geminiBuckets} />
+      ) : q.provider === "codex" ? (
         <>
           <QuotaBar
             label="5h"
@@ -143,9 +147,91 @@ function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
   )
 }
 
+interface GeminiBucketView {
+  model: string
+  pct: number
+  resetAt: string | null
+}
+
+function GeminiQuotaBuckets({ buckets }: { buckets: GeminiBucketView[] }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-2">
+      {buckets.map((bucket) => {
+        const v = Math.max(0, Math.min(100, bucket.pct))
+        const barColor = v <= 10 ? "bg-destructive" : v <= 30 ? "bg-amber-500" : "bg-emerald-500"
+        const textColor = v <= 10 ? "text-destructive" : v <= 30 ? "text-amber-500" : "text-emerald-500"
+
+        return (
+          <div key={bucket.model} className="min-w-0">
+            <div className="mb-0.5 flex items-center gap-1">
+              <span className="truncate text-[10px] font-semibold text-muted-foreground" title={bucket.model}>
+                {bucket.model}
+              </span>
+              <span className={cn("ml-auto text-[10px] font-semibold tabular-nums", textColor)}>
+                {fmtPct(v)}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all duration-500", barColor)}
+                style={{ width: `${v}%` }}
+              />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // QuotaBar — single progress bar
 // ---------------------------------------------------------------------------
+
+function parseGeminiBuckets(q: QuotaSnapshot): GeminiBucketView[] {
+  if (q.provider !== "gemini" || !q.raw_json) return []
+
+  try {
+    const raw = JSON.parse(q.raw_json) as {
+      retrieveUserQuota?: {
+        buckets?: Array<{
+          modelId?: string
+          remainingFraction?: number
+          resetTime?: string
+        }>
+      }
+    }
+
+    return (raw.retrieveUserQuota?.buckets || [])
+      .filter((bucket) => bucket.modelId && Number.isFinite(bucket.remainingFraction))
+      .map((bucket) => ({
+        model: shortGeminiModel(bucket.modelId || "unknown"),
+        pct: Math.max(0, Math.min(100, Math.round((bucket.remainingFraction || 0) * 100))),
+        resetAt: bucket.resetTime || null,
+      }))
+  } catch {
+    return []
+  }
+}
+
+function shortGeminiModel(model: string): string {
+  return model.replace(/^gemini-/, "")
+}
+
+function earliestResetAt(buckets: GeminiBucketView[]): string | null {
+  let earliest: string | null = null
+  let earliestMs = Infinity
+
+  for (const bucket of buckets) {
+    if (!bucket.resetAt) continue
+    const time = new Date(bucket.resetAt).getTime()
+    if (!Number.isFinite(time) || time >= earliestMs) continue
+    earliest = bucket.resetAt
+    earliestMs = time
+  }
+
+  return earliest
+}
 
 function QuotaBar({
   label,
