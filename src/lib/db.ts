@@ -369,7 +369,7 @@ export function queryRecentRequests(limit: number, range?: string): RecentReques
     const { start, end } = getRangeBounds(range)
     rows = db
       .prepare(
-        `SELECT timestamp, source, auth_index, model, endpoint, failed, latency_ms,
+        `SELECT timestamp, source, auth_index, api_key, model, endpoint, failed, latency_ms,
           input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, request_id
         FROM usage_events WHERE ts_epoch BETWEEN ? AND ? ORDER BY ts_epoch DESC LIMIT ?`
       )
@@ -377,7 +377,7 @@ export function queryRecentRequests(limit: number, range?: string): RecentReques
   } else {
     rows = db
       .prepare(
-        `SELECT timestamp, source, auth_index, model, endpoint, failed, latency_ms,
+        `SELECT timestamp, source, auth_index, api_key, model, endpoint, failed, latency_ms,
           input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, request_id
         FROM usage_events ORDER BY ts_epoch DESC LIMIT ?`
       )

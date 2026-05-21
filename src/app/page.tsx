@@ -217,7 +217,7 @@ export default function DashboardPage() {
 
             {/* Charts row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-              <section className="card-border p-5 h-full flex flex-col">
+              <section className="card-border p-5 min-h-[332px] flex flex-col">
                 <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-primary" />
                   {range === "7d" || range === "15d" || range === "30d" ? "按日期消耗" : "按小时消耗"}
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                 )}
               </section>
 
-              <section className="card-border p-5 h-full">
+              <section className="card-border p-5 min-h-[332px]">
                 <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <BarChartIcon className="w-4 h-4 text-primary" />
                   模型消耗分布

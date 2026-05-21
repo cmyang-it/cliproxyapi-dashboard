@@ -75,6 +75,7 @@ export interface RecentRequest {
   local_time: string
   source: string | null
   auth_index: string | null
+  api_key: string | null
   model: string | null
   endpoint: string | null
   failed: number
