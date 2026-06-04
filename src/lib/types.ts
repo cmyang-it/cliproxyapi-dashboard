@@ -70,6 +70,20 @@ export interface QuotaSnapshot {
   raw_json: string
 }
 
+/** Gemini bucket detail parsed server-side (avoids leaking raw_json to browser) */
+export interface GeminiBucketView {
+  model: string
+  pct: number
+  resetAt: string | null
+}
+
+/** QuotaSnapshot with raw_json stripped, geminiBuckets pre-parsed */
+export type QuotaSnapshotSafe = Omit<QuotaSnapshot, "raw_json"> & {
+  geminiBuckets: GeminiBucketView[]
+  /** True when Gemini is in API-key validation mode (no real quota data) */
+  apiKeyMode?: boolean
+}
+
 export interface RecentRequest {
   timestamp: string
   local_time: string

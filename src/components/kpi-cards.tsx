@@ -80,7 +80,7 @@ export const KpiCards = memo(function KpiCards({ data }: KpiCardsProps) {
       {cards.map((c) => (
         <div
           key={c.label}
-          className="card-border p-4 flex flex-col gap-2 animate-slide-up"
+          className="card-border p-4 flex flex-col gap-2 animate-slide-up transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
         >
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-md ${c.bg} flex items-center justify-center`}>

@@ -101,7 +101,7 @@ function readAuthFiles(): AuthEntry[] {
         console.log(`[quota] Skipping ${file}: account is disabled`)
         continue
       }
-      results.push({ filepath, data })
+      results.push({ filepath, data: { ...data, _filepath: filepath } })
     } catch (err) {
       console.warn(`[quota] Failed to parse ${file}: ${err instanceof Error ? err.message : err}`)
     }

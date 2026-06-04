@@ -16,7 +16,7 @@ export const AccountTable = memo(function AccountTable({ data }: AccountTablePro
   return (
     <div className="overflow-auto max-h-[300px] scrollbar-hide">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card z-10">
+        <thead className="table-sticky-header">
           <tr>
             <th className="table-header text-left py-2">账号</th>
             <th className="table-header text-right py-2">请求</th>

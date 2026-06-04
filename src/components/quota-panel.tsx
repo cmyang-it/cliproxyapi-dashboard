@@ -3,7 +3,7 @@
 import { memo } from "react"
 import { cn, fmtPct } from "@/lib/utils"
 import { ShieldCheck, ShieldAlert, Coins } from "lucide-react"
-import type { QuotaSnapshot } from "@/lib/types"
+import type { QuotaSnapshotSafe, GeminiBucketView } from "@/lib/types"
 
 // ---------------------------------------------------------------------------
 // Provider badge config
@@ -25,7 +25,7 @@ function providerBadge(type: string) {
 // ---------------------------------------------------------------------------
 
 interface QuotaPanelProps {
-  data: QuotaSnapshot[]
+  data: QuotaSnapshotSafe[]
 }
 
 export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
@@ -46,9 +46,9 @@ export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
 // QuotaCard
 // ---------------------------------------------------------------------------
 
-function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
+function QuotaCard({ quota }: { quota: QuotaSnapshotSafe }) {
   const q = quota
-  const geminiBuckets = parseGeminiBuckets(q)
+  const geminiBuckets = q.geminiBuckets
   const resetAt = earliestResetAt(geminiBuckets) || q.primary_reset_at
   const blocked = !q.allowed || !!q.limit_reached
   const badge = providerBadge(q.provider)
@@ -111,7 +111,12 @@ function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
       </div>
 
       {/* Quota bars — per-provider semantics */}
-      {geminiBuckets.length > 0 ? (
+      {q.apiKeyMode ? (
+        <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 py-0.5">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span className="font-medium">API Key 有效</span>
+        </div>
+      ) : geminiBuckets.length > 0 ? (
         <GeminiQuotaBuckets buckets={geminiBuckets} />
       ) : q.provider === "codex" ? (
         <>
@@ -147,11 +152,6 @@ function QuotaCard({ quota }: { quota: QuotaSnapshot }) {
   )
 }
 
-interface GeminiBucketView {
-  model: string
-  pct: number
-  resetAt: string | null
-}
 
 function GeminiQuotaBuckets({ buckets }: { buckets: GeminiBucketView[] }) {
   return (
@@ -187,36 +187,6 @@ function GeminiQuotaBuckets({ buckets }: { buckets: GeminiBucketView[] }) {
 // ---------------------------------------------------------------------------
 // QuotaBar — single progress bar
 // ---------------------------------------------------------------------------
-
-function parseGeminiBuckets(q: QuotaSnapshot): GeminiBucketView[] {
-  if (q.provider !== "gemini" || !q.raw_json) return []
-
-  try {
-    const raw = JSON.parse(q.raw_json) as {
-      retrieveUserQuota?: {
-        buckets?: Array<{
-          modelId?: string
-          remainingFraction?: number
-          resetTime?: string
-        }>
-      }
-    }
-
-    return (raw.retrieveUserQuota?.buckets || [])
-      .filter((bucket) => bucket.modelId && Number.isFinite(bucket.remainingFraction))
-      .map((bucket) => ({
-        model: shortGeminiModel(bucket.modelId || "unknown"),
-        pct: Math.max(0, Math.min(100, Math.round((bucket.remainingFraction || 0) * 100))),
-        resetAt: bucket.resetTime || null,
-      }))
-  } catch {
-    return []
-  }
-}
-
-function shortGeminiModel(model: string): string {
-  return model.replace(/^gemini-/, "")
-}
 
 function earliestResetAt(buckets: GeminiBucketView[]): string | null {
   let earliest: string | null = null

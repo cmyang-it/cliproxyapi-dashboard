@@ -6,6 +6,7 @@
  *   2. Gemini CLI OAuth: reads Code Assist quota buckets through OAuth.
  */
 
+import fs from "fs"
 import { fetchHttpsJson, postHttpsFormJson, postHttpsJson } from "../socks5"
 import type { AuthFile, QuotaProvider, QuotaResult } from "./types"
 
@@ -110,7 +111,7 @@ async function fetchApiKeyQuota(auth: AuthFile): Promise<QuotaResult> {
     secondaryUsedPct: 0,
     secondaryResetAt: null,
     creditsBalance: null,
-    rawJson: JSON.stringify(data),
+    rawJson: JSON.stringify({ apiKeyMode: true, modelCount }),
   }
 }
 
@@ -240,13 +241,38 @@ async function getValidGeminiAccessToken(auth: GeminiCliAuth): Promise<string> {
     throw new Error("Gemini CLI OAuth refresh did not return access_token")
   }
 
+  // Persist refreshed token back to the auth file so subsequent rounds
+  // don't trigger redundant OAuth refresh requests.
+  if (auth._filepath) {
+    const newExpiry = data.expires_in ? Date.now() + data.expires_in * 1000 : undefined
+    token.access_token = data.access_token
+    if (newExpiry) token.expiry = newExpiry
+    try {
+      const content = fs.readFileSync(auth._filepath, "utf-8")
+      const parsed = JSON.parse(content) as Record<string, unknown>
+      const existingToken = (parsed.token && typeof parsed.token === "object") ? parsed.token as Record<string, unknown> : {}
+      parsed.token = { ...existingToken, access_token: data.access_token }
+      if (newExpiry) (parsed.token as Record<string, unknown>).expiry = newExpiry
+      fs.writeFileSync(auth._filepath, JSON.stringify(parsed, null, 2))
+    } catch {
+      // Non-fatal: token is still valid in-memory for this round
+      console.warn(`[gemini] Failed to persist refreshed token to ${auth._filepath}`)
+    }
+  }
+
   return data.access_token
 }
 
 function isTokenExpired(expiry: string | number | undefined): boolean {
   if (!expiry) return false
 
-  const expiryMs = typeof expiry === "number" ? expiry : new Date(expiry).getTime()
+  let expiryMs: number
+  if (typeof expiry === "number") {
+    // Heuristic: values < 1e12 are likely seconds, not milliseconds
+    expiryMs = expiry < 1e12 ? expiry * 1000 : expiry
+  } else {
+    expiryMs = new Date(expiry).getTime()
+  }
   if (!Number.isFinite(expiryMs)) return true
 
   return Date.now() >= expiryMs - 60_000

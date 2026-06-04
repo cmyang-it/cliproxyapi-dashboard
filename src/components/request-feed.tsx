@@ -30,7 +30,7 @@ export const RequestFeed = memo(function RequestFeed({ data }: RequestFeedProps)
   return (
     <div className="overflow-auto max-h-[420px] scrollbar-hide">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card z-10">
+        <thead className="table-sticky-header">
           <tr>
             <th className="table-header text-left py-2">时间</th>
             <th className="table-header text-left py-2">Key</th>

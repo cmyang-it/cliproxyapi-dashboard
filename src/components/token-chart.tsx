@@ -54,7 +54,10 @@ export const TokenChart = memo(function TokenChart({ data, className }: TokenCha
             border: "1px solid hsl(var(--border))",
             borderRadius: "var(--radius)",
             fontSize: 13,
+            boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)",
+            padding: "8px 12px",
           }}
+          labelStyle={{ fontWeight: 600, marginBottom: 2 }}
           labelFormatter={(_, payload) => {
             if (payload?.[0]) {
               return (payload[0].payload as { label: string }).label

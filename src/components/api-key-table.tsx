@@ -16,7 +16,7 @@ export const ApiKeyTable = memo(function ApiKeyTable({ data }: ApiKeyTableProps)
   return (
     <div className="overflow-auto max-h-[300px] scrollbar-hide">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card z-10">
+        <thead className="table-sticky-header">
           <tr>
             <th className="table-header text-left py-2">API Key</th>
             <th className="table-header text-right py-2">请求</th>

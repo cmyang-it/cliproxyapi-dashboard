@@ -67,7 +67,7 @@ export const ModelChart = memo(function ModelChart({ data }: ModelChartProps) {
           return (
             <div
               key={model.model}
-              className="group rounded-lg px-2 py-1.5 transition-colors hover:bg-secondary/30"
+              className="group rounded-lg px-2 py-1.5 transition-all duration-200 hover:bg-secondary/30 hover:translate-x-0.5"
             >
               <div className="flex items-center gap-3">
                 <div className="w-6 text-right text-[11px] tabular-nums text-muted-foreground/70">

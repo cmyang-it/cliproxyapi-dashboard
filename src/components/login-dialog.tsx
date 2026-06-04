@@ -42,8 +42,8 @@ export function LoginDialog({ onSuccess }: LoginDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="card-border p-6 w-full max-w-sm mx-4 animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
+      <div className="card-border p-6 w-full max-w-sm mx-4 animate-slide-up shadow-xl">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <KeyRound className="w-4 h-4 text-primary" />

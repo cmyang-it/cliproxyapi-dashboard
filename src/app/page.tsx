@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { RefreshCw, Server, Database, Clock, ChevronDown, Radio, RadioTower, Home, List } from "lucide-react"
+import { RefreshCw, Server, Database, Clock, ChevronDown, Radio, RadioTower, Home, List, AlertTriangle } from "lucide-react"
 import { cn, fmt, RANGE_OPTIONS, RangeOption } from "@/lib/utils"
 import { KpiCards } from "@/components/kpi-cards"
 import { TokenChart } from "@/components/token-chart"
@@ -11,7 +11,7 @@ import { QuotaPanel } from "@/components/quota-panel"
 import { RequestFeed } from "@/components/request-feed"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ApiKeyTable } from "@/components/api-key-table"
-import type { SummaryRow, AccountRow, ModelRow, HourRow, QuotaSnapshot, RecentRequest, ApiKeyRow } from "@/lib/types"
+import type { SummaryRow, AccountRow, ModelRow, HourRow, QuotaSnapshotSafe, RecentRequest, ApiKeyRow } from "@/lib/types"
 import { LoginDialog } from "@/components/login-dialog"
 
 type Tab = "home" | "details"
@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState<AccountRow[]>([])
   const [models, setModels] = useState<ModelRow[]>([])
   const [hours, setHours] = useState<HourRow[]>([])
-  const [quotas, setQuotas] = useState<QuotaSnapshot[]>([])
+  const [quotas, setQuotas] = useState<QuotaSnapshotSafe[]>([])
   const [requests, setRequests] = useState<RecentRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshError, setRefreshError] = useState("")
@@ -201,11 +201,14 @@ export default function DashboardPage() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 max-w-[1440px] mx-auto px-4 md:px-6 py-6 space-y-6 w-full">
+      <main className="flex-1 max-w-[1440px] mx-auto px-4 md:px-6 py-6 space-y-6 w-full animate-fade-in">
         {refreshError && (
-          <div className="card-border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            <div>数据刷新失败：{refreshError}</div>
-            <div className="mt-1 text-xs text-muted-foreground">已保留上一次成功加载的数据。</div>
+          <div className="card-border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3 animate-slide-up">
+            <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-medium text-destructive">数据刷新失败</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{refreshError} — 已保留上一次成功加载的数据</div>
+            </div>
           </div>
         )}
 
@@ -282,10 +285,12 @@ export default function DashboardPage() {
 
         {/* Empty state */}
         {empty && !loading && (
-          <div className="text-center py-16">
-            <Database className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
-            <p className="text-muted-foreground">当前时间范围内暂无用量数据</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
+          <div className="text-center py-20 animate-fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-5">
+              <Database className="w-8 h-8 text-muted-foreground/50" />
+            </div>
+            <p className="text-foreground font-medium">当前时间范围内暂无用量数据</p>
+            <p className="text-sm text-muted-foreground/70 mt-1.5">
               采集器每隔 {health?.pollIntervalSeconds ?? 2} 秒从 CLIProxyAPI 拉取数据
             </p>
           </div>
@@ -344,7 +349,7 @@ function Skeleton() {
       <div className="h-4 bg-secondary rounded w-3/4" />
       <div className="h-4 bg-secondary rounded w-1/2" />
       <div className="h-4 bg-secondary rounded w-2/3" />
-      <div className="h-[200px] bg-secondary rounded" />
+      <div className="h-[200px] bg-gradient-to-br from-secondary to-secondary/50 rounded" />
     </div>
   )
 }

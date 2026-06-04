@@ -32,6 +32,9 @@ export interface AuthFile {
   /** Token expiry date (ISO-8601 or similar) */
   expired?: string
 
+  /** Set by quota-fetcher — absolute path to the auth JSON file, enables token write-back */
+  _filepath?: string
+
   /** Allow providers to attach arbitrary extra fields */
   [key: string]: unknown
 }
