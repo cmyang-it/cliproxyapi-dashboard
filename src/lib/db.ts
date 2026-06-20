@@ -408,9 +408,9 @@ export function queryLatestQuotas(): QuotaSnapshot[] {
               q.credits_balance, q.raw_json
        FROM quota_snapshots q
        JOIN (
-         SELECT email, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY email
-       ) latest ON latest.email = q.email AND latest.ts = q.ts_epoch
-       ORDER BY q.email`
+         SELECT provider, email, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY provider, email
+       ) latest ON latest.provider = q.provider AND latest.email = q.email AND latest.ts = q.ts_epoch
+       ORDER BY q.provider, q.email`
     )
     .all() as QuotaSnapshot[]
 }

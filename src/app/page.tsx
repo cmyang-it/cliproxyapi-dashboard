@@ -1,17 +1,28 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { RefreshCw, Server, Database, Clock, ChevronDown, Radio, RadioTower, Home, List, AlertTriangle } from "lucide-react"
+import { RefreshCw, Server, Clock, ChevronDown, Radio, RadioTower, Home, List, AlertTriangle } from "lucide-react"
 import { cn, fmt, RANGE_OPTIONS, RangeOption } from "@/lib/utils"
 import { KpiCards } from "@/components/kpi-cards"
 import { TokenChart } from "@/components/token-chart"
 import { ModelChart } from "@/components/model-chart"
 import { AccountTable } from "@/components/account-table"
 import { QuotaPanel } from "@/components/quota-panel"
+import { QuotaStatsCards } from "@/components/quota-stats-cards"
 import { RequestFeed } from "@/components/request-feed"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ApiKeyTable } from "@/components/api-key-table"
-import type { SummaryRow, AccountRow, ModelRow, HourRow, QuotaSnapshotSafe, RecentRequest, ApiKeyRow } from "@/lib/types"
+import type {
+  SummaryRow,
+  AccountRow,
+  ModelRow,
+  HourRow,
+  QuotaSnapshotSafe,
+  RecentRequest,
+  ApiKeyRow,
+  QuotaStats,
+  AuthFailureAccount,
+} from "@/lib/types"
 import { LoginDialog } from "@/components/login-dialog"
 
 type Tab = "home" | "details"
@@ -24,6 +35,8 @@ export default function DashboardPage() {
   const [models, setModels] = useState<ModelRow[]>([])
   const [hours, setHours] = useState<HourRow[]>([])
   const [quotas, setQuotas] = useState<QuotaSnapshotSafe[]>([])
+  const [quotaStats, setQuotaStats] = useState<QuotaStats>({ total: 0, normal: 0, limitReached: 0, authFailed: 0 })
+  const [authFailures, setAuthFailures] = useState<AuthFailureAccount[]>([])
   const [requests, setRequests] = useState<RecentRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshError, setRefreshError] = useState("")
@@ -67,6 +80,8 @@ export default function DashboardPage() {
       setApiKeys(summaryData.apiKeys || [])
       setHours(summaryData.hours)
       setQuotas(quotaData.quotas)
+      setQuotaStats(quotaData.stats || { total: 0, normal: 0, limitReached: 0, authFailed: 0 })
+      setAuthFailures(quotaData.authFailures || [])
       setRequests(requestData.requests)
       setHealth(healthData)
       setUpdated(new Date().toLocaleTimeString("zh-CN"))
@@ -115,8 +130,6 @@ export default function DashboardPage() {
     setRange(value)
     setLoading(true)
   }
-
-  const empty = !loading && summary && summary.requests === 0 && requests.length === 0
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -256,17 +269,6 @@ export default function DashboardPage() {
                 <ApiKeyTable data={apiKeys} />
               </section>
             </div>
-          </>
-        )}
-
-        {/* --- Details Tab --- */}
-        {tab === "details" && (
-          <>
-            {/* Quota panel */}
-            <section className="card-border p-5 w-full">
-              <h2 className="text-sm font-semibold mb-3">账号余量</h2>
-              <QuotaPanel data={quotas} />
-            </section>
 
             {/* Request feed */}
             <section className="card-border p-5">
@@ -283,18 +285,23 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* Empty state */}
-        {empty && !loading && (
-          <div className="text-center py-20 animate-fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-5">
-              <Database className="w-8 h-8 text-muted-foreground/50" />
-            </div>
-            <p className="text-foreground font-medium">当前时间范围内暂无用量数据</p>
-            <p className="text-sm text-muted-foreground/70 mt-1.5">
-              采集器每隔 {health?.pollIntervalSeconds ?? 2} 秒从 CLIProxyAPI 拉取数据
-            </p>
-          </div>
+        {/* --- Details Tab --- */}
+        {tab === "details" && (
+          <>
+            <QuotaStatsCards
+              data={quotaStats}
+              authFailures={authFailures}
+              onChanged={() => fetchData(range)}
+            />
+
+            {/* Quota panel */}
+            <section className="card-border p-5 w-full">
+              <h2 className="text-sm font-semibold mb-3">账号列表</h2>
+              <QuotaPanel data={quotas} accountTotal={quotaStats.total} />
+            </section>
+          </>
         )}
+
       </main>
 
       {/* Footer */}

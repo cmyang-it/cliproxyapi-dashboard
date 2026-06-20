@@ -7,142 +7,52 @@
  * Runs once on startup, then periodically on QUOTA_REFRESH_SECONDS interval.
  */
 
-import fs from "fs"
 import path from "path"
 import { env } from "./env"
 import { insertQuotaSnapshot } from "./db"
-
-import { codexProvider } from "./quota-providers/codex"
-import { geminiProvider } from "./quota-providers/gemini"
-import { kimiProvider } from "./quota-providers/kimi"
-import { claudeProvider } from "./quota-providers/claude"
-import type { AuthFile, QuotaProvider } from "./quota-providers/types"
-
-// ---------------------------------------------------------------------------
-// Provider registry
-// ---------------------------------------------------------------------------
-
-/** Ordered list of providers — first match wins */
-const providers: QuotaProvider[] = [
-  codexProvider,
-  geminiProvider,
-  kimiProvider,
-  claudeProvider,
-]
-
-/**
- * Find the right provider for an auth file.
- *
- * Priority:
- *   1. `auth.type` field matches provider.type
- *   2. Fallback: provider.matchAuthFile() (for custom logic)
- *   3. Fallback: filename prefix (e.g. "codex-" → codexProvider)
- */
-function findProvider(auth: AuthFile, _filename: string): QuotaProvider | null {
-  // 1. Exact type match
-  if (auth.type) {
-    const byType = providers.find((p) => p.type === auth.type)
-    if (byType) return byType
-  }
-
-  // 2. Provider custom matching
-  for (const p of providers) {
-    if (p.matchAuthFile(auth)) return p
-  }
-
-  // 3. Filename prefix heuristic
-  const basename = path.basename(_filename)
-  for (const p of providers) {
-    if (basename.startsWith(p.type + "-")) return p
-  }
-
-  return null
-}
-
-// ---------------------------------------------------------------------------
-// Auth file discovery
-// ---------------------------------------------------------------------------
-
-interface AuthEntry {
-  filepath: string
-  data: AuthFile
-}
-
-function readAuthFiles(): AuthEntry[] {
-  if (!env.authDir) return []
-
-  const dir = path.resolve(env.authDir)
-  if (!fs.existsSync(dir)) {
-    console.warn(`[quota] Auth directory not found: ${dir}`)
-    return []
-  }
-
-  const results: AuthEntry[] = []
-  let files: string[]
-  try {
-    files = fs.readdirSync(dir)
-  } catch (err) {
-    console.warn(`[quota] Failed to read auth directory: ${err instanceof Error ? err.message : err}`)
-    return []
-  }
-
-  for (const file of files) {
-    if (!file.endsWith(".json")) continue
-    const filepath = path.join(dir, file)
-    try {
-      const content = fs.readFileSync(filepath, "utf-8")
-      const data = JSON.parse(content)
-      // Require at least an email or known token field
-      if (!data.email && !data.access_token && !data.api_key) {
-        console.warn(`[quota] Skipping ${file}: no email / token / key field`)
-        continue
-      }
-      if (data.disabled) {
-        console.log(`[quota] Skipping ${file}: account is disabled`)
-        continue
-      }
-      results.push({ filepath, data: { ...data, _filepath: filepath } })
-    } catch (err) {
-      console.warn(`[quota] Failed to parse ${file}: ${err instanceof Error ? err.message : err}`)
-    }
-  }
-
-  return results
-}
+import {
+  readCurrentAuthEntries,
+  recordQuotaRefreshFailure,
+  recordQuotaRefreshSuccess,
+  type AuthEntry,
+} from "./quota-auth"
 
 // ---------------------------------------------------------------------------
 // Fetch & persist
 // ---------------------------------------------------------------------------
 
 async function refreshSingleAccount(entry: AuthEntry): Promise<boolean> {
-  const provider = findProvider(entry.data, entry.filepath)
-  if (!provider) {
-    console.warn(
-      `[quota] No matching provider for ${path.basename(entry.filepath)} (type=${entry.data.type || "unknown"})`,
-    )
-    return false
-  }
-
   const label = entry.data.email || path.basename(entry.filepath)
 
   try {
-    const result = await provider.fetchQuota(entry.data)
+    const result = await entry.provider.fetchQuota(entry.data)
     insertQuotaSnapshot(result)
+    recordQuotaRefreshSuccess(entry.provider.type, result.email)
     const secLabel =
       result.primaryUsedPct > 0
         ? `primary=${result.primaryUsedPct}%`
         : `secondary=${result.secondaryUsedPct}%`
-    console.log(`[quota] ✓ ${label} (${provider.type}): ${secLabel}`)
+    console.log(`[quota] ✓ ${label} (${entry.provider.type}): ${secLabel}`)
     return true
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[quota] ✗ ${label} (${provider.type}): ${sanitizeQuotaError(msg)}`)
+    recordQuotaRefreshFailure(
+      entry.provider.type,
+      entry.data.email || "unknown",
+      path.basename(entry.filepath),
+      sanitizeQuotaError(msg),
+    )
+    console.warn(`[quota] ✗ ${label} (${entry.provider.type}): ${sanitizeQuotaError(msg)}`)
     return false
   }
 }
 
 function sanitizeQuotaError(message: string): string {
-  if (/^HTTP \d{3}\b/.test(message)) return message.match(/^HTTP \d{3}/)?.[0] || "HTTP error"
+  const status = message.match(/^HTTP (\d{3})\b/)?.[1]
+  if (status === "401") return "HTTP 401 认证失败"
+  if (status === "403") return "HTTP 403 无访问权限"
+  if (status === "429") return "HTTP 429 请求过于频繁"
+  if (status) return `HTTP ${status} 请求失败`
   return message.replace(/[\r\n]/g, " ").slice(0, 300)
 }
 
@@ -170,7 +80,7 @@ export async function refreshAllQuotas(): Promise<number> {
 
   if (!env.authDir) return 0
 
-  const entries = readAuthFiles()
+  const entries = readCurrentAuthEntries(env.authDir)
   if (entries.length === 0) return 0
 
   s.refreshing = true

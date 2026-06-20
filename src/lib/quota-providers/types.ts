@@ -1,7 +1,7 @@
 /**
  * Provider architecture — unified interfaces for multi-provider quota fetching.
  *
- * Each provider (Codex, Gemini, Kimi, Claude, …) implements the QuotaProvider
+ * Each provider (Codex, Kimi, Claude, …) implements the QuotaProvider
  * interface. The quota-fetcher orchestrator discovers auth files, dispatches them
  * to the correct provider, and writes QuotaResult snapshots into SQLite.
  */
@@ -14,7 +14,7 @@
  * passes the full object to each provider, which extracts what it needs.
  */
 export interface AuthFile {
-  /** Provider identifier, e.g. "codex", "gemini", "kimi", "claude" */
+  /** Provider identifier, e.g. "codex", "kimi", "claude" */
   type?: string
 
   /** OAuth access token (Bearer) */
@@ -46,7 +46,7 @@ export interface AuthFile {
  * see src/lib/db.ts for the storage schema.
  */
 export interface QuotaResult {
-  /** Provider identifier matching QuotaProvider.type ("codex"|"kimi"|"gemini"|"claude") */
+  /** Provider identifier matching QuotaProvider.type ("codex"|"kimi"|"claude") */
   provider: string
   email: string
   plan: string | null
@@ -67,7 +67,7 @@ export interface QuotaResult {
 }
 
 /**
- * A single quota provider (Codex, Gemini, Kimi, …).
+ * A single quota provider (Codex, Kimi, Claude, …).
  *
  * Implementors must be stateless — the orchestrator may call fetchQuota
  * concurrently for different accounts.

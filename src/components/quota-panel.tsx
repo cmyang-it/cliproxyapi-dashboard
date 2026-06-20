@@ -1,9 +1,9 @@
 "use client"
 
-import { memo } from "react"
+import { memo, useMemo, useState } from "react"
 import { cn, fmtPct } from "@/lib/utils"
 import { ShieldCheck, ShieldAlert, Coins } from "lucide-react"
-import type { QuotaSnapshotSafe, GeminiBucketView } from "@/lib/types"
+import type { QuotaSnapshotSafe } from "@/lib/types"
 
 // ---------------------------------------------------------------------------
 // Provider badge config
@@ -12,7 +12,6 @@ import type { QuotaSnapshotSafe, GeminiBucketView } from "@/lib/types"
 const PROVIDER_BADGE: Record<string, { label: string; bg: string; text: string }> = {
   codex:  { label: "Codex",  bg: "bg-blue-500/15",   text: "text-blue-400" },
   kimi:   { label: "Kimi",   bg: "bg-emerald-500/15", text: "text-emerald-400" },
-  gemini: { label: "Gemini", bg: "bg-amber-500/15",   text: "text-amber-400" },
   claude: { label: "Claude", bg: "bg-violet-500/15",  text: "text-violet-400" },
 }
 
@@ -26,18 +25,76 @@ function providerBadge(type: string) {
 
 interface QuotaPanelProps {
   data: QuotaSnapshotSafe[]
+  accountTotal: number
 }
 
-export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
-  if (!data.length) {
+type ProviderFilter = "all" | "codex" | "kimi" | "claude"
+
+const PROVIDER_FILTERS: Array<{ value: ProviderFilter; label: string }> = [
+  { value: "all", label: "全部" },
+  { value: "codex", label: "Codex" },
+  { value: "kimi", label: "Kimi" },
+  { value: "claude", label: "Claude" },
+]
+
+export const QuotaPanel = memo(function QuotaPanel({ data, accountTotal }: QuotaPanelProps) {
+  const [filter, setFilter] = useState<ProviderFilter>("all")
+  const counts = useMemo(() => {
+    const next: Record<ProviderFilter, number> = {
+      all: data.length,
+      codex: 0,
+      kimi: 0,
+      claude: 0,
+    }
+
+    for (const item of data) {
+      if (item.provider in next) {
+        next[item.provider as ProviderFilter]++
+      }
+    }
+
+    return next
+  }, [data])
+  const filteredData = filter === "all" ? data : data.filter((q) => q.provider === filter)
+
+  if (accountTotal === 0) {
     return <div className="text-muted-foreground text-sm py-8 text-center">暂无余量数据</div>
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[500px] overflow-auto pr-1 scrollbar-hide">
-      {data.map((q) => (
-        <QuotaCard key={q.email} quota={q} />
-      ))}
+    <div className="space-y-3">
+      <div className="flex items-center bg-secondary rounded-lg p-0.5 w-fit max-w-full overflow-x-auto scrollbar-hide">
+        {PROVIDER_FILTERS.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setFilter(item.value)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all duration-200",
+              filter === item.value
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span>{item.label}</span>
+            <span className="tabular-nums text-[10px] text-muted-foreground">
+              {counts[item.value]}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {filteredData.length ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[500px] overflow-auto pr-1 scrollbar-hide">
+          {filteredData.map((q) => (
+            <QuotaCard key={`${q.provider}:${q.email}`} quota={q} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-muted-foreground text-sm py-8 text-center">
+          {filter === "all" ? "暂无余量数据" : `${providerBadge(filter).label} 下暂无余量数据`}
+        </div>
+      )}
     </div>
   )
 })
@@ -48,10 +105,11 @@ export const QuotaPanel = memo(function QuotaPanel({ data }: QuotaPanelProps) {
 
 function QuotaCard({ quota }: { quota: QuotaSnapshotSafe }) {
   const q = quota
-  const geminiBuckets = q.geminiBuckets
-  const resetAt = earliestResetAt(geminiBuckets) || q.primary_reset_at
-  const blocked = !q.allowed || !!q.limit_reached
+  const resetAt = q.primary_reset_at
+  const blocked = !!q.authFailed || !q.allowed || !!q.limit_reached
   const badge = providerBadge(q.provider)
+  const statusLabel = q.authFailed ? "异常" : q.limit_reached ? "达限" : "受限"
+  const codexFree = q.provider === "codex" && (q.plan || "").toLowerCase() === "free"
 
   return (
     <div
@@ -91,7 +149,7 @@ function QuotaCard({ quota }: { quota: QuotaSnapshotSafe }) {
               <>
                 <ShieldAlert className="w-3.5 h-3.5 text-destructive" />
                 <span className="text-[10px] text-destructive font-medium">
-                  {q.limit_reached ? "达限" : "受限"}
+                  {statusLabel}
                 </span>
               </>
             ) : (
@@ -111,13 +169,18 @@ function QuotaCard({ quota }: { quota: QuotaSnapshotSafe }) {
       </div>
 
       {/* Quota bars — per-provider semantics */}
-      {q.apiKeyMode ? (
-        <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 py-0.5">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span className="font-medium">API Key 有效</span>
-        </div>
-      ) : geminiBuckets.length > 0 ? (
-        <GeminiQuotaBuckets buckets={geminiBuckets} />
+      {q.authFailed ? (
+        <QuotaBar
+          label="额度"
+          pct={0}
+          resetAt={null}
+        />
+      ) : q.provider === "codex" && codexFree ? (
+        <QuotaBar
+          label="月额度"
+          pct={q.secondary_remaining_percent}
+          resetAt={null}
+        />
       ) : q.provider === "codex" ? (
         <>
           <QuotaBar
@@ -150,57 +213,6 @@ function QuotaCard({ quota }: { quota: QuotaSnapshotSafe }) {
       )}
     </div>
   )
-}
-
-
-function GeminiQuotaBuckets({ buckets }: { buckets: GeminiBucketView[] }) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-2">
-      {buckets.map((bucket) => {
-        const v = Math.max(0, Math.min(100, bucket.pct))
-        const barColor = v <= 10 ? "bg-destructive" : v <= 30 ? "bg-amber-500" : "bg-emerald-500"
-        const textColor = v <= 10 ? "text-destructive" : v <= 30 ? "text-amber-500" : "text-emerald-500"
-
-        return (
-          <div key={bucket.model} className="min-w-0">
-            <div className="mb-0.5 flex items-center gap-1">
-              <span className="truncate text-[10px] font-semibold text-muted-foreground" title={bucket.model}>
-                {bucket.model}
-              </span>
-              <span className={cn("ml-auto text-[10px] font-semibold tabular-nums", textColor)}>
-                {fmtPct(v)}
-              </span>
-            </div>
-            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all duration-500", barColor)}
-                style={{ width: `${v}%` }}
-              />
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// QuotaBar — single progress bar
-// ---------------------------------------------------------------------------
-
-function earliestResetAt(buckets: GeminiBucketView[]): string | null {
-  let earliest: string | null = null
-  let earliestMs = Infinity
-
-  for (const bucket of buckets) {
-    if (!bucket.resetAt) continue
-    const time = new Date(bucket.resetAt).getTime()
-    if (!Number.isFinite(time) || time >= earliestMs) continue
-    earliest = bucket.resetAt
-    earliestMs = time
-  }
-
-  return earliest
 }
 
 function QuotaBar({
