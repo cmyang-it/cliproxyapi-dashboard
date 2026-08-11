@@ -1,15 +1,17 @@
 import fs from "fs"
 import path from "path"
-import type { AuthFailureAccount, QuotaSnapshot, QuotaStats } from "./types"
-import { codexProvider } from "./quota-providers/codex"
-import { kimiProvider } from "./quota-providers/kimi"
-import { claudeProvider } from "./quota-providers/claude"
-import type { AuthFile, QuotaProvider } from "./quota-providers/types"
+import type { AuthFailureAccount, LimitedAccount, ManagedAuthAccount, QuotaSnapshot, QuotaStats } from "../types"
+import { codexProvider } from "./providers/codex"
+import { kimiProvider } from "./providers/kimi"
+import { claudeProvider } from "./providers/claude"
+import { antigravityProvider } from "./providers/antigravity"
+import type { AuthFile, QuotaProvider } from "./providers/types"
 
 const providers: QuotaProvider[] = [
   codexProvider,
   kimiProvider,
   claudeProvider,
+  antigravityProvider,
 ]
 
 export interface AuthEntry {
@@ -47,7 +49,7 @@ export function findProvider(auth: AuthFile, filename: string): QuotaProvider | 
   return null
 }
 
-export function readCurrentAuthEntries(authDir: string): AuthEntry[] {
+function readAuthEntries(authDir: string, { includeDisabled }: { includeDisabled: boolean }): AuthEntry[] {
   if (!authDir) return []
 
   const dir = path.resolve(authDir)
@@ -77,10 +79,7 @@ export function readCurrentAuthEntries(authDir: string): AuthEntry[] {
         console.warn(`[quota] Skipping ${file}: no email / token / key field`)
         continue
       }
-      if (data.disabled) {
-        console.log(`[quota] Skipping ${file}: account is disabled`)
-        continue
-      }
+      if (data.disabled && !includeDisabled) continue
 
       const auth = { ...data, _filepath: filepath } as AuthFile
       const provider = findProvider(auth, filepath)
@@ -100,11 +99,38 @@ export function readCurrentAuthEntries(authDir: string): AuthEntry[] {
   return results
 }
 
+export function readCurrentAuthEntries(authDir: string): AuthEntry[] {
+  return readAuthEntries(authDir, { includeDisabled: false })
+}
+
+export function readAllAuthEntries(authDir: string): AuthEntry[] {
+  return readAuthEntries(authDir, { includeDisabled: true })
+}
+
+export function readManagedAuthAccountsFromDir(authDir: string): ManagedAuthAccount[] {
+  return readAllAuthEntries(authDir)
+    .filter((entry) => entry.provider.type === "codex" || entry.provider.type === "antigravity")
+    .map((entry) => ({
+      provider: entry.provider.type,
+      email: entry.data.email || "unknown",
+      name: path.basename(entry.filepath),
+      disabled: entry.data.disabled === true,
+    }))
+}
+
 export function getCurrentAuthAccountsFromDir(authDir: string): CurrentAuthAccount[] {
+  return uniqueAuthAccounts(readCurrentAuthEntries(authDir))
+}
+
+export function getAllAuthAccountsFromDir(authDir: string): CurrentAuthAccount[] {
+  return uniqueAuthAccounts(readAllAuthEntries(authDir))
+}
+
+function uniqueAuthAccounts(entries: AuthEntry[]): CurrentAuthAccount[] {
   const seen = new Set<string>()
   const accounts: CurrentAuthAccount[] = []
 
-  for (const entry of readCurrentAuthEntries(authDir)) {
+  for (const entry of entries) {
     const email = entry.data.email || "unknown"
     const name = path.basename(entry.filepath)
     const key = accountKey(entry.provider.type, email)
@@ -116,12 +142,73 @@ export function getCurrentAuthAccountsFromDir(authDir: string): CurrentAuthAccou
   return accounts
 }
 
-export function filterQuotasForAccounts<T extends Pick<QuotaSnapshot, "provider" | "email">>(
+type LimitedAccountQuota = Pick<
+  QuotaSnapshot,
+  "provider" | "email" | "allowed" | "limit_reached" | "primary_used_percent" | "primary_reset_at"
+> & { auth_file_name: string }
+
+export function buildLimitedAccounts(
+  accounts: ManagedAuthAccount[],
+  quotas: LimitedAccountQuota[],
+): LimitedAccount[] {
+  const added = new Set<string>()
+  const limited: LimitedAccount[] = []
+
+  for (const account of accounts) {
+    if (added.has(account.name)) continue
+
+    const quota = quotas.find((item) => item.auth_file_name === account.name)
+    const quotaReached = quota
+      ? quota.primary_used_percent > 95 || quota.limit_reached === 1 || quota.allowed === 0
+      : false
+    const isLimited = account.provider === "codex"
+      ? account.disabled || quotaReached
+      : quota ? quota.limit_reached === 1 || quota.allowed === 0 : false
+
+    if (!isLimited) continue
+
+    added.add(account.name)
+    limited.push({
+      provider: account.provider,
+      email: account.email,
+      name: account.name,
+      disabled: account.disabled,
+      primaryUsedPercent: quota?.primary_used_percent ?? null,
+      resetAt: quota?.primary_reset_at ?? null,
+    })
+  }
+
+  return limited.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function filterQuotasForAccounts<
+  T extends Pick<QuotaSnapshot, "provider" | "email" | "ts_epoch"> & { auth_file_name?: string | null },
+>(
   quotas: T[],
   accounts: CurrentAuthAccount[],
 ): T[] {
-  const allowed = new Set(accounts.map((account) => accountKey(account.provider, account.email)))
-  return quotas.filter((quota) => allowed.has(accountKey(quota.provider, quota.email)))
+  const accountNames = new Map(accounts.map((account) => [
+    accountKey(account.provider, account.email),
+    account.name,
+  ]))
+  const latestByAccount = new Map<string, T>()
+
+  for (const quota of quotas) {
+    const key = accountKey(quota.provider, quota.email)
+    const currentName = accountNames.get(key)
+    if (!currentName) continue
+
+    const existing = latestByAccount.get(key)
+    const isCurrentFile = quota.auth_file_name === currentName
+    const isExistingCurrentFile = existing?.auth_file_name === currentName
+    if (!existing || (isCurrentFile && !isExistingCurrentFile) || (
+      isCurrentFile === isExistingCurrentFile && quota.ts_epoch > existing.ts_epoch
+    )) {
+      latestByAccount.set(key, quota)
+    }
+  }
+
+  return Array.from(latestByAccount.values())
 }
 
 export function buildQuotaStats(

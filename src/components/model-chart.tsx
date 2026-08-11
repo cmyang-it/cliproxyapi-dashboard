@@ -5,15 +5,15 @@ import { fmt } from "@/lib/utils"
 import type { ModelRow } from "@/lib/types"
 
 const PALETTE = [
-  ["#7dd3fc", "#2563eb"],
-  ["#86efac", "#16a34a"],
-  ["#fde68a", "#d97706"],
-  ["#c4b5fd", "#7c3aed"],
-  ["#fda4af", "#e11d48"],
+  ["#e8a940", "#c07d20"],
+  ["#a78bfa", "#7c3aed"],
+  ["#60a5fa", "#2563eb"],
+  ["#4ade80", "#16a34a"],
+  ["#f87171", "#dc2626"],
+  ["#fbbf24", "#d97706"],
   ["#67e8f9", "#0891b2"],
   ["#fdba74", "#ea580c"],
-  ["#a5b4fc", "#4f46e5"],
-  ["#6ee7b7", "#059669"],
+  ["#94a3b8", "#64748b"],
 ]
 
 interface ModelChartProps {
@@ -65,10 +65,7 @@ export const ModelChart = memo(function ModelChart({ data }: ModelChartProps) {
           const failedPct = model.requests > 0 ? (model.failed / model.requests) * 100 : 0
 
           return (
-            <div
-              key={model.model}
-              className="group rounded-lg px-2 py-1.5 transition-all duration-200 hover:bg-secondary/30 hover:translate-x-0.5"
-            >
+            <div key={model.model} className="group rounded-md px-2 py-1.5 transition-all duration-200 hover:bg-primary/5">
               <div className="flex items-center gap-3">
                 <div className="w-6 text-right text-[11px] tabular-nums text-muted-foreground/70">
                   {model.muted ? "—" : index + 1}
@@ -98,7 +95,7 @@ export const ModelChart = memo(function ModelChart({ data }: ModelChartProps) {
                     </div>
                   </div>
 
-                  <div className="relative h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className="relative h-2 overflow-hidden rounded-full bg-secondary">
                     <div
                       className="h-full rounded-full transition-[width] duration-700 ease-out"
                       style={{

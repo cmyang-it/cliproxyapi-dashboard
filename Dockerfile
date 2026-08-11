@@ -43,10 +43,9 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV DB_PATH=/app/data/usage.sqlite
-ENV AUTH_DIR=/app/auths
 
 # wget is included in Alpine base image (busybox)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget -qO- http://localhost:3000/api/health || exit 1
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "AUTH_DIR=${AUTH_DIR:-/app/auths} exec node server.js"]

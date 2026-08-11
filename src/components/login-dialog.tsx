@@ -42,16 +42,22 @@ export function LoginDialog({ onSuccess }: LoginDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
-      <div className="card-border p-6 w-full max-w-sm mx-4 animate-slide-up shadow-xl">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-            <KeyRound className="w-4 h-4 text-primary" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-4 backdrop-blur-sm animate-fade-in">
+      <div className="card-border w-full max-w-sm animate-slide-up overflow-hidden p-6 shadow-xl">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
+            <KeyRound className="h-4 w-4 text-primary" />
           </div>
-          <h2 className="text-lg font-semibold">身份验证</h2>
+          <div>
+            <div className="flex items-center gap-2 font-bold text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
+              <span className="text-sm tracking-tight">USAGE PANEL</span>
+            </div>
+            <h2 className="mt-1 text-lg font-semibold">身份验证</h2>
+          </div>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-5">
+        <p className="mb-5 text-sm text-muted-foreground">
           请输入 Dashboard 访问密钥以继续
         </p>
 
@@ -67,7 +73,7 @@ export function LoginDialog({ onSuccess }: LoginDialogProps) {
               placeholder="输入访问密钥"
               autoFocus
               disabled={loading}
-              className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
             />
             {error && (
               <p className="text-xs text-destructive mt-1.5">{error}</p>
@@ -77,7 +83,7 @@ export function LoginDialog({ onSuccess }: LoginDialogProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {loading ? "验证中..." : "确认"}

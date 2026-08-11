@@ -24,7 +24,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       onClick={toggle}
       className={cn(
-        "flex items-center justify-center w-8 h-8 rounded-md border border-border bg-secondary hover:bg-secondary/70 transition-colors",
+        "flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border bg-input text-muted-foreground transition-colors hover:border-primary hover:text-primary",
         className
       )}
       aria-label={mounted ? (dark ? "切换到亮色模式" : "切换到暗色模式") : "切换主题"}

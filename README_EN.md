@@ -7,47 +7,38 @@
 
 [简体中文](README.md) | [English](README_EN.md)
 
-A local-first usage statistics and monitoring dashboard for CLIProxyAPI. It collects per-request token usage from the CLIProxyAPI Management API, stores data in SQLite, and provides a real-time dashboard with visual charts, request details, and multi-provider quota monitoring.
+**CLIProxyAPI Dashboard** is a local-first usage and account-quota dashboard for CLIProxyAPI. It polls the CLIProxyAPI Management API, persists usage locally in SQLite, and brings together account, API-key, model, and provider-quota status.
 
-## Recent Updates
+**Important:** This project has only been tested with Antigravity and free Codex accounts; other providers have not been tested due to a lack of available accounts.
 
-- **Gemini CLI multi-model quotas** — Supports Gemini CLI OAuth and reads Code Assist quota buckets, displaying per-model progress bars, percentages, reset times, and paid-tier labels.
-- **Richer quota panel** — Codex shows 5h/7d dual progress bars; Gemini can show multiple model buckets; Kimi, Claude, and other providers use the unified quota bar style.
-- **Masked API key in request feed** — Recent requests now include a masked Key column, making it easier to trace usage sources without exposing plaintext keys.
-- **Stable chart card heights** — Token trend and model distribution cards keep a stable minimum height when switching ranges, avoiding layout jumps between 24h/7d-style views.
-- **Extended statistics ranges** — Supports Today, last 24 hours, last 7 days, last 15 days, and last 30 days.
-
-## Features
-
-- **Home / Details Tabs** — Dual-tab navigation: Home for overview and charts, Details for consumption tables and quotas.
-- **KPI Overview** — Request count (with success/failure breakdown), total tokens, input/output/reasoning/cached tokens.
-- **Token Trends** — Area chart grouped by hour or day depending on the selected range.
-- **Model Distribution** — Custom gradient horizontal bar chart with framer-motion animations, Top 10 models, and global percentage.
-- **Account Consumption** — Detailed breakdown by account/source (Details tab).
-- **API Key Consumption** — Token usage grouped by individual API key (Details tab).
-- **Quota Status** — Account quota snapshots and progress bars for Codex, Gemini, Kimi, Claude, and other providers (Details tab).
-- **Request Feed** — Recent requests with time, masked key, account, model, token counts, latency, and status.
-- **Time Range** — Toggle between Today, 24h, 7d, 15d, and 30d views.
-- **Light / Dark Mode** — One-click theme toggle, preference persisted in localStorage.
-- **Authentication** — Optional access key protection with login dialog.
-- **Auto Refresh** — Data refreshes every 10 seconds, with a manual refresh button.
-- **Collector Status** — Footer shows collector running state, event count, and uptime.
+> Business data stays in local SQLite. Account-quota refreshes call the relevant provider APIs when configured; protect authentication files and environment variables accordingly.
 
 ## Screenshots
 
-![img1](./images/img1.png)
+![Dashboard screenshot 1](./images/img1.png)
 
-![img2](./images/img2.png)
+![Dashboard screenshot 2](./images/img2.png)
+
+## Features
+
+- **Usage overview** — Request, success/failure, input/output/reasoning/cache token KPIs and range-based trends.
+- **Consumption analysis** — Token and failure aggregates by model, account, and masked API key, plus recent-request latency and status.
+- **Account quotas** — Reads JSON auth files from `AUTH_DIR` and shows availability, balances, plans, and reset times for Codex, Antigravity, Kimi, and Claude; the accounts page supports provider filtering and tracks total and auth-failed account counts.
+- **Quota management** — Codex accounts are marked disabled after reaching their primary-quota threshold and are periodically retried after reset; failed auth files can be removed in the UI.
+- **Two-tab layout** — The Home tab focuses on usage trends and consumption analysis; the Accounts tab manages auth files and quota status.
+- **Local-first storage** — Usage events and quota snapshots live in SQLite with WAL mode and can be mounted directly from the host.
+- **Access protection** — Setting `ACCESS_KEY` protects the dashboard and API with an httpOnly-cookie login flow.
+- **Operational visibility** — Automatic collection, manual refresh, light/dark themes, and collector status in the footer.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- CLIProxyAPI running with Management API enabled
-- Usage statistics enabled in CLIProxyAPI
+- Node.js 18+ (the Docker image uses Node.js 20)
+- A running CLIProxyAPI instance whose Management API is reachable from the dashboard
+- CLIProxyAPI usage statistics enabled
 
-Ensure your CLIProxyAPI config includes:
+At minimum, enable the following in CLIProxyAPI:
 
 ```yaml
 usage-statistics-enabled: true
@@ -57,131 +48,156 @@ redis-usage-queue-retention-seconds: 3600
 ### Local Development
 
 ```bash
-# 1. Navigate to project
+# 1. Enter the project directory
 cd cliproxyapi-dashboard
 
-# 2. Install dependencies
-npm install
+# 2. Install the locked dependency set
+npm ci
 
-# 3. Configure environment
+# 3. Configure the runtime environment
 cp .env.example .env
-# Edit .env and set MANAGEMENT_KEY
+# Edit .env and set MANAGEMENT_KEY at minimum
 
-# 4. Start dev server
+# 4. Start the development server
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open `http://localhost:3000`.
 
-### Docker Deployment
+### Docker Compose Deployment
 
 ```bash
-# 1. Configure environment
+cp .env.example .env
+# Edit .env and set MANAGEMENT_KEY plus a reachable CLIPROXY_URL
+
+docker compose up -d --build
+docker compose logs -f
+```
+
+The default service mounts SQLite at `./data` and mounts host `./auths` read-only at `/app/auths` in the container.
+
+> **Docker networking:** in bridge mode, `CLIPROXY_URL=http://127.0.0.1:8317` points to the Dashboard container itself, not CLIProxyAPI on the host. Use a LAN address, hostname, or a service name reachable from the Dashboard container instead.
+
+### Prebuilt Image
+
+```bash
 cp .env.example .env
 # Edit .env
 
-# 2. Start services
-docker-compose up -d
-
-# 3. View logs
-docker-compose logs -f
-```
-
-You can also run the image directly:
-
-```bash
 docker run -d \
   --name cliproxyapi-dashboard \
   --restart unless-stopped \
+  --env-file .env \
   -p 3000:3000 \
-  -e CLIPROXY_URL="${CLIPROXY_URL:-http://127.0.0.1:8317}" \
-  -e MANAGEMENT_KEY="${MANAGEMENT_KEY:-}" \
-  -e ACCESS_KEY="${ACCESS_KEY:-admin123}" \
-  -e POLL_INTERVAL_SECONDS="${POLL_INTERVAL_SECONDS:-2}" \
-  -e QUOTA_REFRESH_SECONDS="${QUOTA_REFRESH_SECONDS:-300}" \
-  -e SOCKS5_PROXY_HOST="${SOCKS5_PROXY_HOST:-}" \
-  -e SOCKS5_PROXY_PORT="${SOCKS5_PROXY_PORT:-0}" \
-  -e SOCKS5_PROXY_USERNAME="${SOCKS5_PROXY_USERNAME:-}" \
-  -e SOCKS5_PROXY_PASSWORD="${SOCKS5_PROXY_PASSWORD:-}" \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/auths:/app/auths:ro" \
   xiyangai/cliproxyapi-dashboard:latest
 ```
 
-Open `http://localhost:3000` in your browser.
+## Configuration
 
-## Environment Variables
+`CLIPROXY_URL` has the highest priority. When it is unset, the app builds the address from `CLIPROXY_HOST`, `CLIPROXY_PORT`, and `CLIPROXY_HTTPS`.
 
-| Variable | Default | Description |
-|------|--------|------|
-| `CLIPROXY_URL` | `http://127.0.0.1:8317` | Full CLIProxyAPI URL (recommended; supports `https://` and domains) |
-| `CLIPROXY_HOST` | `127.0.0.1` | CLIProxyAPI host (used only when `CLIPROXY_URL` is not set) |
-| `CLIPROXY_PORT` | `8317` | CLIProxyAPI port (used only when `CLIPROXY_URL` is not set) |
-| `MANAGEMENT_KEY` | (required) | Management API plaintext key |
-| `ACCESS_KEY` | — | Dashboard login key (auth disabled when empty) |
-| `POLL_INTERVAL_SECONDS` | `2` | Data collection interval (seconds) |
-| `QUOTA_REFRESH_SECONDS` | `300` | Account quota refresh interval (seconds) |
-| `DB_PATH` | `./data/usage.sqlite` | SQLite database path |
-| `AUTH_DIR` | `./auths` | Provider auth file directory for Codex/Gemini/Kimi/Claude quota queries |
-| `SOCKS5_PROXY_HOST` | — | SOCKS5 proxy host for quota fetching |
-| `SOCKS5_PROXY_PORT` | `0` | SOCKS5 proxy port (0 = disabled) |
-| `SOCKS5_PROXY_USERNAME` | — | SOCKS5 proxy username (optional; must be set together with password) |
-| `SOCKS5_PROXY_PASSWORD` | — | SOCKS5 proxy password (optional; must be set together with username) |
+| Variable | App default | Description |
+| --- | --- | --- |
+| `CLIPROXY_URL` | — | CLIProxyAPI address, for example `http://192.168.1.10:8317`. Paths and query strings are ignored. |
+| `CLIPROXY_HOST` | `127.0.0.1` | Legacy configuration; used only when `CLIPROXY_URL` is unset. |
+| `CLIPROXY_PORT` | `8317` | Legacy configuration; used only when `CLIPROXY_URL` is unset. |
+| `CLIPROXY_HTTPS` | `false` | Uses HTTPS when set to `true` in legacy configuration mode. |
+| `MANAGEMENT_KEY` | — | **Required.** CLIProxyAPI Management API key. |
+| `DB_PATH` | `./data/usage.sqlite` | SQLite database path. Docker mounts `./data` at `/app/data` by default. |
+| `AUTH_DIR` | unset | Directory containing provider-auth JSON files. Leave it unset to disable account-quota collection. |
+| `POLL_INTERVAL_SECONDS` | `2` | CLIProxyAPI usage-queue polling interval in seconds. |
+| `QUOTA_REFRESH_SECONDS` | `300` | Account-quota refresh interval in seconds. Invalid values or values below 60 fall back to 300 seconds. |
+| `SOCKS5_PROXY_HOST` | — | SOCKS5 proxy host for account-quota requests. |
+| `SOCKS5_PROXY_PORT` | `0` | SOCKS5 proxy port; `0` disables the proxy. |
+| `SOCKS5_PROXY_USERNAME` | — | SOCKS5 username; must be set together with the password. |
+| `SOCKS5_PROXY_PASSWORD` | — | SOCKS5 password; must be set together with the username. |
+| `ACCESS_KEY` | — | Dashboard login key; an empty value disables authentication. The current `docker-compose.yml` defaults it to `admin123` when omitted—replace it with a long random value for production. |
 
-> **Prefer `CLIPROXY_URL`**: set `http://127.0.0.1:8317` — the system auto-parses protocol, host, and port. Legacy `CLIPROXY_HOST` + `CLIPROXY_PORT` are still supported.
+## Account Quotas and Auth Files
 
-## Authentication
-
-When `ACCESS_KEY` is configured, the dashboard requires a login key before displaying any data. On successful authentication, an httpOnly cookie is stored in the browser for 30 days, so re-authentication is not needed on subsequent visits. Leave `ACCESS_KEY` empty to skip authentication entirely.
-
-```bash
-# .env
-ACCESS_KEY=your-secret-key
-```
-
-## Data Storage
-
-All usage data is stored locally in SQLite (WAL mode) — nothing is uploaded to any third-party service. The database contains two core tables:
-
-- `usage_events` — Per-request usage events (token counts, model, account, masked API key, API key hash, latency, etc.).
-- `quota_snapshots` — Provider account quota snapshots for Codex, Gemini, Kimi, Claude, and others (optional).
-
-## Architecture
+When `AUTH_DIR` is set, the app reads `*.json` files from the directory's **first level** at startup and refreshes them on `QUOTA_REFRESH_SECONDS`. An auth file needs at least an email, access token, or API key. Providers are identified by `type` or the file-name prefix.
 
 ```text
-CLIProxyAPI :8317  ←→  Dashboard (Next.js)
-  │                        │
-  │ GET /usage-queue       │ Collector (polls every N seconds)
-  │                        │
-  │                        ↓
-  │                    SQLite
-  │                        │
-  │                        ↓
-  │                 API Routes (+ Auth Middleware)
-  │                        │
-  │                        ↓
-  └────────────────→  React Panel (Light / Dark theme)
+auths/
+├── codex-work.json
+├── antigravity-main.json
+├── kimi.json
+└── claude.json
 ```
 
-## API Endpoints
+Minimal examples:
 
-| Endpoint | Auth Required | Description |
-|------|------|------|
-| `GET /api/health` | Yes | Health check and collector status |
-| `GET /api/summary?range=today` | Yes | Usage summary grouped by account/model/key/time |
-| `GET /api/requests?limit=100&range=today` | Yes | Recent request details |
-| `GET /api/quota` | Yes | Account quota snapshots |
-| `POST /api/auth` | No | Login verification |
-| `GET /api/auth` | No | Check authentication status |
+```json
+// Codex: access_token is required; account_id and user_agent are optional
+{
+  "type": "codex",
+  "email": "user@example.com",
+  "access_token": "<redacted>",
+  "account_id": "<optional>"
+}
+```
+
+```json
+// Antigravity: use OAuth data generated by its client
+{
+  "type": "antigravity",
+  "email": "user@example.com",
+  "access_token": "<redacted>",
+  "refresh_token": "<redacted>",
+  "project_id": "<optional>"
+}
+```
+
+```json
+// Kimi / Claude: api_key is required
+{
+  "type": "kimi",
+  "email": "user@example.com",
+  "api_key": "<redacted>"
+}
+```
+
+```json
+{
+  "type": "claude",
+  "email": "user@example.com",
+  "api_key": "<redacted>"
+}
+```
+
+- Codex reports account quota windows; Kimi reads balance; Claude checks API-key availability; Antigravity shows returned quota groups and reset times.
+- Authentication failures, permission failures, and rate limits are shown in the account view. Removing a failed account calls the CLIProxyAPI Management API to delete its auth file and hides the entry for the current process.
+- `disabled: true` skips an account manually. Codex accounts may also be automatically marked disabled after reaching their primary-quota threshold and are checked for recovery every 10 minutes.
+
+> **Security:** `auths/*.json` can contain access tokens, refresh tokens, or API keys. Do not commit, share, log, or copy them into Docker images. Restrict permissions on this directory in production.
+
+## Data and API
+
+SQLite uses WAL mode and stores two core datasets:
+
+- `usage_events` — Request events, tokens, models, accounts, masked API keys, latency, and status.
+- `quota_snapshots` — Provider quota snapshots, plans, reset times, and raw responses.
+
+When `ACCESS_KEY` is set, every page and API route except `/login` and `/api/auth` requires login. Main endpoints:
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/health` | Health check and collector state. |
+| `GET /api/summary?range=today` | Usage summary grouped by account, model, key, and time. |
+| `GET /api/requests?limit=100&range=today` | Recent request details. |
+| `GET /api/quota` | Account quota snapshots, failed accounts, and limited accounts. |
+| `DELETE /api/quota/auth-file` | Deletes an auth file for a failed account. |
+| `POST /api/auth` | Submits the Dashboard login key. |
+| `GET /api/auth` | Returns login status. |
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Charts**: Recharts (Area Chart) + framer-motion (custom bar chart)
-- **Database**: better-sqlite3 (WAL mode)
-- **Styling**: Tailwind CSS + CSS custom properties theme system
-- **Icons**: Lucide React
-- **Auth**: httpOnly Cookie + Edge Middleware
+- Next.js 14 (App Router) + React 18
+- SQLite / `better-sqlite3`
+- Tailwind CSS, Recharts, Framer Motion, and Lucide React
+- Docker multi-stage build
 
 ## License
 

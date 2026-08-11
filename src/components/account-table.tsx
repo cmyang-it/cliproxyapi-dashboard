@@ -14,29 +14,29 @@ export const AccountTable = memo(function AccountTable({ data }: AccountTablePro
   }
 
   return (
-    <div className="overflow-auto max-h-[300px] scrollbar-hide">
-      <table className="w-full text-sm">
+    <div className="overflow-auto max-h-[300px] rounded-lg scrollbar-hide">
+      <table className="w-full border-collapse text-[0.82rem]">
         <thead className="table-sticky-header">
           <tr>
-            <th className="table-header text-left py-2">账号</th>
-            <th className="table-header text-right py-2">请求</th>
-            <th className="table-header text-right py-2">总 Token</th>
-            <th className="table-header text-right py-2">输入</th>
-            <th className="table-header text-right py-2">输出</th>
-            <th className="table-header text-right py-2">推理</th>
-            <th className="table-header text-right py-2">失败</th>
+            <th className="table-header px-3 py-2.5 text-left">账号</th>
+            <th className="table-header px-3 py-2.5 text-right">请求</th>
+            <th className="table-header px-3 py-2.5 text-right">总 Token</th>
+            <th className="table-header px-3 py-2.5 text-right">输入</th>
+            <th className="table-header px-3 py-2.5 text-right">输出</th>
+            <th className="table-header px-3 py-2.5 text-right">推理</th>
+            <th className="table-header px-3 py-2.5 text-right">失败</th>
           </tr>
         </thead>
         <tbody>
           {data.map((a) => (
-            <tr key={a.account} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-              <td className="py-2.5 pr-4 font-medium truncate max-w-[200px]">{a.account}</td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(a.requests)}</td>
-              <td className="py-2.5 text-right tabular-nums text-primary font-medium">{fmt(a.total_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(a.input_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(a.output_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(a.reasoning_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">
+            <tr key={a.account} className="border-b border-border/60 transition-colors hover:bg-primary/5">
+              <td className="max-w-[200px] truncate px-3 py-2.5 font-mono text-xs font-medium">{a.account}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(a.requests)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs font-medium tabular-nums text-primary">{fmt(a.total_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(a.input_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(a.output_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(a.reasoning_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums">
                 {a.failed > 0 ? (
                   <span className="text-destructive">{a.failed}</span>
                 ) : (

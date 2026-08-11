@@ -2,7 +2,6 @@
 
 import { memo } from "react"
 import { cn, fmt, fmtMs } from "@/lib/utils"
-import { CheckCircle, XCircle } from "lucide-react"
 import type { RecentRequest } from "@/lib/types"
 
 interface RequestFeedProps {
@@ -28,54 +27,64 @@ export const RequestFeed = memo(function RequestFeed({ data }: RequestFeedProps)
   }
 
   return (
-    <div className="overflow-auto max-h-[420px] scrollbar-hide">
-      <table className="w-full text-sm">
+    <div className="overflow-auto max-h-[460px] rounded-lg scrollbar-hide">
+      <table className="w-full border-collapse text-[0.82rem]">
         <thead className="table-sticky-header">
           <tr>
-            <th className="table-header text-left py-2">时间</th>
-            <th className="table-header text-left py-2">Key</th>
-            <th className="table-header text-left py-2">账号</th>
-            <th className="table-header text-left py-2">模型</th>
-            <th className="table-header text-right py-2">Token</th>
-            <th className="table-header text-right py-2">输入</th>
-            <th className="table-header text-right py-2">输出</th>
-            <th className="table-header text-right py-2">耗时</th>
-            <th className="table-header text-center py-2">状态</th>
+            <th className="table-header px-3 py-2.5 text-left">时间</th>
+            <th className="table-header px-3 py-2.5 text-left">状态</th>
+            <th className="table-header px-3 py-2.5 text-left">接口</th>
+            <th className="table-header px-3 py-2.5 text-left">模型</th>
+            <th className="table-header px-3 py-2.5 text-left">账号</th>
+            <th className="table-header px-3 py-2.5 text-left">Key</th>
+            <th className="table-header px-3 py-2.5 text-right">输入 Token</th>
+            <th className="table-header px-3 py-2.5 text-right">输出 Token</th>
+            <th className="table-header px-3 py-2.5 text-right">总 Token</th>
+            <th className="table-header px-3 py-2.5 text-right">耗时</th>
           </tr>
         </thead>
         <tbody>
           {data.map((r, i) => (
-            <tr key={i} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-              <td className="py-2 pr-4 whitespace-nowrap text-muted-foreground font-mono text-xs">
+            <tr key={i} className="border-b border-border/60 transition-colors hover:bg-primary/5">
+              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-muted-foreground">
                 {r.local_time}
               </td>
-              <td className="py-2 pr-4 whitespace-nowrap text-muted-foreground font-mono text-xs">
-                {maskKey(r.api_key)}
+              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs">
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "h-[7px] w-[7px] rounded-full",
+                      r.failed ? "bg-destructive shadow-[0_0_6px_hsl(var(--destructive))]" : "bg-emerald-400 shadow-[0_0_6px_rgb(74_222_128)]",
+                    )}
+                  />
+                  <span className={r.failed ? "text-destructive" : "text-emerald-400"}>
+                    {r.failed ? "ERR" : "OK"}
+                  </span>
+                </span>
               </td>
-              <td className="py-2 pr-4 truncate max-w-[140px]">
-                {r.source || r.auth_index || "-"}
+              <td className="max-w-[160px] truncate px-3 py-2.5 font-mono text-xs text-muted-foreground">
+                {r.endpoint || "-"}
               </td>
-              <td className="py-2 pr-4 truncate max-w-[160px]">
+              <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-xs">
                 {r.model || "-"}
               </td>
-              <td className="py-2 text-right tabular-nums font-medium">
-                {fmt(r.total_tokens)}
+              <td className="max-w-[140px] truncate px-3 py-2.5">
+                {r.source || r.auth_index || "-"}
               </td>
-              <td className="py-2 text-right tabular-nums text-muted-foreground">
+              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-muted-foreground">
+                {maskKey(r.api_key)}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
                 {fmt(r.input_tokens)}
               </td>
-              <td className="py-2 text-right tabular-nums text-muted-foreground">
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
                 {fmt(r.output_tokens)}
               </td>
-              <td className="py-2 text-right tabular-nums text-muted-foreground">
-                {fmtMs(r.latency_ms)}
+              <td className="px-3 py-2.5 text-right font-mono text-xs font-medium tabular-nums text-primary">
+                {fmt(r.total_tokens)}
               </td>
-              <td className="py-2 text-center">
-                {r.failed ? (
-                  <XCircle className="w-4 h-4 text-destructive inline" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 text-emerald-400 inline" />
-                )}
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                {fmtMs(r.latency_ms)}
               </td>
             </tr>
           ))}

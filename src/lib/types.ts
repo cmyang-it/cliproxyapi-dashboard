@@ -51,12 +51,20 @@ export interface HourRow {
   failed: number
 }
 
+export interface HourModelRow {
+  hour: string
+  model: string
+  requests: number
+  total_tokens: number
+}
+
 export interface QuotaSnapshot {
   id: number
   timestamp: string
   ts_epoch: number
   provider: string
   email: string
+  auth_file_name?: string | null
   plan: string | null
   allowed: number
   limit_reached: number
@@ -75,6 +83,36 @@ export type QuotaSnapshotSafe = Omit<QuotaSnapshot, "raw_json"> & {
   /** True when the latest quota refresh failed due to auth/API validation */
   authFailed?: boolean
   authFailureMessage?: string
+  quotaGroups?: QuotaGroup[]
+}
+
+export interface QuotaGroupBar {
+  label: string
+  remainingPercent: number | null
+  statusLabel: string
+  resetAt: string | null
+}
+
+export interface QuotaGroup {
+  title: string
+  models: string
+  bars: QuotaGroupBar[]
+}
+
+export interface ManagedAuthAccount {
+  provider: string
+  email: string
+  name: string
+  disabled: boolean
+}
+
+export interface LimitedAccount {
+  provider: string
+  email: string
+  name: string
+  disabled: boolean
+  primaryUsedPercent: number | null
+  resetAt: string | null
 }
 
 export interface QuotaStats {

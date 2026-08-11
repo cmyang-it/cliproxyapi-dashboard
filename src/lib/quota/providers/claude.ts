@@ -13,7 +13,7 @@
  * set type to "codex" or "claude-code" — this provider only handles API keys.
  */
 
-import { fetchHttpsJson } from "../socks5"
+import { fetchHttpsJson } from "../../socks5"
 import type { AuthFile, QuotaProvider, QuotaResult } from "./types"
 
 const ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models"

@@ -14,29 +14,29 @@ export const ApiKeyTable = memo(function ApiKeyTable({ data }: ApiKeyTableProps)
   }
 
   return (
-    <div className="overflow-auto max-h-[300px] scrollbar-hide">
-      <table className="w-full text-sm">
+    <div className="overflow-auto max-h-[300px] rounded-lg scrollbar-hide">
+      <table className="w-full border-collapse text-[0.82rem]">
         <thead className="table-sticky-header">
           <tr>
-            <th className="table-header text-left py-2">API Key</th>
-            <th className="table-header text-right py-2">请求</th>
-            <th className="table-header text-right py-2">总 Token</th>
-            <th className="table-header text-right py-2">输入</th>
-            <th className="table-header text-right py-2">输出</th>
-            <th className="table-header text-right py-2">失败</th>
+            <th className="table-header px-3 py-2.5 text-left">API Key</th>
+            <th className="table-header px-3 py-2.5 text-right">请求</th>
+            <th className="table-header px-3 py-2.5 text-right">总 Token</th>
+            <th className="table-header px-3 py-2.5 text-right">输入</th>
+            <th className="table-header px-3 py-2.5 text-right">输出</th>
+            <th className="table-header px-3 py-2.5 text-right">失败</th>
           </tr>
         </thead>
         <tbody>
           {data.map((k) => (
-            <tr key={k.api_key} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-              <td className="py-2.5 pr-4 font-mono text-xs truncate max-w-[160px]" title={k.api_key}>
+            <tr key={k.api_key} className="border-b border-border/60 transition-colors hover:bg-primary/5">
+              <td className="max-w-[160px] truncate px-3 py-2.5 font-mono text-xs text-muted-foreground" title={k.api_key}>
                 {k.api_key}
               </td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(k.requests)}</td>
-              <td className="py-2.5 text-right tabular-nums text-primary font-medium">{fmt(k.total_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(k.input_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">{fmt(k.output_tokens)}</td>
-              <td className="py-2.5 text-right tabular-nums">
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(k.requests)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs font-medium tabular-nums text-primary">{fmt(k.total_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(k.input_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">{fmt(k.output_tokens)}</td>
+              <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums">
                 {k.failed > 0 ? (
                   <span className="text-destructive">{k.failed}</span>
                 ) : (

@@ -7,6 +7,7 @@ import type {
   AccountRow,
   ModelRow,
   HourRow,
+  HourModelRow,
   RecentRequest,
   ApiKeyRow,
   QuotaSnapshot,
@@ -100,6 +101,7 @@ function initSchema(db: Database.Database) {
       ts_epoch REAL NOT NULL,
       provider TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL,
+      auth_file_name TEXT,
       plan TEXT,
       allowed INTEGER,
       limit_reached INTEGER,
@@ -122,6 +124,10 @@ function initSchema(db: Database.Database) {
   try {
     db.exec("ALTER TABLE quota_snapshots ADD COLUMN provider TEXT NOT NULL DEFAULT ''")
   } catch { /* column already exists */ }
+  try {
+    db.exec("ALTER TABLE quota_snapshots ADD COLUMN auth_file_name TEXT")
+  } catch { /* column already exists */ }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_quota_auth_file_ts ON quota_snapshots(auth_file_name, ts_epoch)")
 }
 
 /** Insert raw usage JSON records into SQLite, deduping by request_id */
@@ -188,6 +194,7 @@ export function insertUsageBatch(items: unknown[]): number {
 export function insertQuotaSnapshot(data: {
   provider: string
   email: string
+  authFileName: string
   plan: string | null
   allowed: boolean
   limitReached: boolean
@@ -202,16 +209,17 @@ export function insertQuotaSnapshot(data: {
   const now = new Date()
   db.prepare(`
     INSERT INTO quota_snapshots (
-      timestamp, ts_epoch, provider, email, plan, allowed, limit_reached,
+      timestamp, ts_epoch, provider, email, auth_file_name, plan, allowed, limit_reached,
       primary_used_percent, primary_remaining_percent, primary_reset_at,
       secondary_used_percent, secondary_remaining_percent, secondary_reset_at,
       credits_balance, raw_json
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     now.toISOString(),
     now.getTime() / 1000,
     data.provider,
     data.email,
+    data.authFileName,
     data.plan,
     data.allowed ? 1 : 0,
     data.limitReached ? 1 : 0,
@@ -362,6 +370,26 @@ export function queryByHour(range: string): HourRow[] {
     .all(start, end) as HourRow[]
 }
 
+export function queryByHourModel(range: string): HourModelRow[] {
+  const db = getDb()
+  const { start, end } = getRangeBounds(range)
+  const bucket = range === "7d" || range === "15d" || range === "30d"
+    ? "local_date"
+    : "local_hour"
+
+  return db
+    .prepare(
+      `SELECT
+        ${bucket} as hour,
+        COALESCE(model, 'unknown') as model,
+        COUNT(*) as requests,
+        COALESCE(SUM(total_tokens),0) as total_tokens
+      FROM usage_events WHERE ts_epoch BETWEEN ? AND ?
+      GROUP BY hour, model ORDER BY hour, total_tokens DESC`
+    )
+    .all(start, end) as HourModelRow[]
+}
+
 export function queryRecentRequests(limit: number, range?: string): RecentRequest[] {
   const db = getDb()
   let rows: RecentRequest[]
@@ -397,22 +425,51 @@ export function queryRecentRequests(limit: number, range?: string): RecentReques
   return rows
 }
 
+export function deleteQuotaSnapshotsNotInAccounts(accounts: Array<Pick<QuotaSnapshot, "provider" | "email">>): void {
+  const active = new Set(accounts.map((account) => `${account.provider}:${account.email}`))
+  const db = getDb()
+  const snapshots = db.prepare("SELECT DISTINCT provider, email FROM quota_snapshots").all() as Array<Pick<QuotaSnapshot, "provider" | "email">>
+  const remove = db.prepare("DELETE FROM quota_snapshots WHERE provider = ? AND email = ?")
+
+  db.transaction(() => {
+    for (const snapshot of snapshots) {
+      if (!active.has(`${snapshot.provider}:${snapshot.email}`)) {
+        remove.run(snapshot.provider, snapshot.email)
+      }
+    }
+  })()
+}
+
 export function queryLatestQuotas(): QuotaSnapshot[] {
   const db = getDb()
   return db
     .prepare(
-      `SELECT q.id, q.timestamp, q.ts_epoch, q.provider, q.email, q.plan,
+      `SELECT q.id, q.timestamp, q.ts_epoch, q.provider, q.email, q.auth_file_name, q.plan,
               q.allowed, q.limit_reached,
               q.primary_used_percent, q.primary_remaining_percent, q.primary_reset_at,
               q.secondary_used_percent, q.secondary_remaining_percent, q.secondary_reset_at,
               q.credits_balance, q.raw_json
        FROM quota_snapshots q
        JOIN (
-         SELECT provider, email, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY provider, email
-       ) latest ON latest.provider = q.provider AND latest.email = q.email AND latest.ts = q.ts_epoch
+         SELECT provider, email, auth_file_name, MAX(ts_epoch) as ts FROM quota_snapshots GROUP BY provider, email, auth_file_name
+       ) latest ON latest.provider = q.provider AND latest.email = q.email AND latest.auth_file_name IS q.auth_file_name AND latest.ts = q.ts_epoch
        ORDER BY q.provider, q.email`
     )
     .all() as QuotaSnapshot[]
+}
+
+export function queryLatestQuotaByAuthFile(
+  name: string,
+): Pick<QuotaSnapshot, "primary_used_percent" | "primary_reset_at" | "provider" | "email" | "auth_file_name"> | null {
+  return getDb()
+    .prepare(
+      `SELECT primary_used_percent, primary_reset_at, provider, email, auth_file_name
+       FROM quota_snapshots
+       WHERE auth_file_name = ?
+       ORDER BY ts_epoch DESC
+       LIMIT 1`,
+    )
+    .get(name) as Pick<QuotaSnapshot, "primary_used_percent" | "primary_reset_at" | "provider" | "email" | "auth_file_name"> | undefined || null
 }
 
 function fillDayBuckets(rows: HourRow[], days: number): HourRow[] {

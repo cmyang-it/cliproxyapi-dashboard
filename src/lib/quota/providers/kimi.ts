@@ -13,7 +13,7 @@
  *   Authorization: Bearer sk-…
  */
 
-import { fetchHttpsJson } from "../socks5"
+import { fetchHttpsJson } from "../../socks5"
 import type { AuthFile, QuotaProvider, QuotaResult } from "./types"
 
 const KIMI_BALANCE_URL = "https://api.moonshot.cn/v1/users/me/balance"

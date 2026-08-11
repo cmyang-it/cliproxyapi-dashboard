@@ -332,6 +332,7 @@ function httpsRequest(
         return
       }
       chunks.push(chunk)
+      if (isCompleteHttpResponse(Buffer.concat(chunks))) finish()
     }
 
     function onEnd() {
@@ -381,6 +382,55 @@ function buildHttpRequest(
   }
 
   return `${lines.join("\r\n")}\r\n\r\n${body || ""}`
+}
+
+export function isCompleteHttpResponse(response: Buffer): boolean {
+  const headerEnd = response.indexOf("\r\n\r\n")
+  if (headerEnd < 0) return false
+
+  const headerText = response.subarray(0, headerEnd).toString("latin1")
+  const headers = new Map<string, string>()
+  for (const line of headerText.split("\r\n").slice(1)) {
+    const sep = line.indexOf(":")
+    if (sep > 0) headers.set(line.slice(0, sep).trim().toLowerCase(), line.slice(sep + 1).trim())
+  }
+
+  const body = response.subarray(headerEnd + 4)
+  if (headers.get("transfer-encoding")?.toLowerCase().includes("chunked")) {
+    return isCompleteChunkedBody(body)
+  }
+
+  const contentLength = headers.get("content-length")
+  if (!contentLength || !/^\d+$/.test(contentLength)) return false
+  return body.length >= Number(contentLength)
+}
+
+function isCompleteChunkedBody(body: Buffer): boolean {
+  let offset = 0
+
+  while (offset < body.length) {
+    const lineEnd = body.indexOf("\r\n", offset)
+    if (lineEnd < 0) return false
+
+    const sizeText = body.subarray(offset, lineEnd).toString("ascii").split(";", 1)[0]
+    if (!/^[0-9a-f]+$/i.test(sizeText)) return false
+    const size = Number.parseInt(sizeText, 16)
+    offset = lineEnd + 2
+
+    if (size === 0) {
+      while (true) {
+        const trailerEnd = body.indexOf("\r\n", offset)
+        if (trailerEnd < 0) return false
+        if (trailerEnd === offset) return true
+        offset = trailerEnd + 2
+      }
+    }
+    if (body.length < offset + size + 2) return false
+    if (body.subarray(offset + size, offset + size + 2).toString("ascii") !== "\r\n") return false
+    offset += size + 2
+  }
+
+  return false
 }
 
 function parseHttpResponse(response: Buffer): { status: number; body: string } {

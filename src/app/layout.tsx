@@ -19,7 +19,8 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  if (localStorage.getItem('theme') === 'dark') {
+                  var theme = localStorage.getItem('theme');
+                  if (theme !== 'light') {
                     document.documentElement.classList.add('dark');
                   }
                 } catch (e) {}

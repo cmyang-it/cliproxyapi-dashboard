@@ -1,28 +1,40 @@
 "use client"
 
-import { memo, type ReactNode, type ComponentType } from "react"
-import { fmt } from "@/lib/utils"
-import { Zap, ArrowDownToLine, ArrowUpFromLine, Brain, BarChart3 } from "lucide-react"
+import { memo, type ReactNode } from "react"
+import { cn, fmt, fmtCompact } from "@/lib/utils"
 import type { SummaryRow } from "@/lib/types"
 
 interface KpiCard {
   label: string
   value: string
   sub: ReactNode
-  icon: ComponentType<{ className?: string }>
   color: string
-  bg: string
 }
 
 interface KpiCardsProps {
   data: SummaryRow
+  accountTotal: number
+  authFailed: number
 }
 
-export const KpiCards = memo(function KpiCards({ data }: KpiCardsProps) {
+export const KpiCards = memo(function KpiCards({ data, accountTotal, authFailed }: KpiCardsProps) {
+  const inputPct = data.total_tokens > 0 ? (data.input_tokens / data.total_tokens) * 100 : 0
+  const outputPct = data.total_tokens > 0 ? (data.output_tokens / data.total_tokens) * 100 : 0
+
   const cards: KpiCard[] = [
     {
+      label: "账号总数",
+      value: fmtCompact(accountTotal),
+      sub: (
+        <span>
+          正常 {fmt(Math.max(0, accountTotal - authFailed))} / 异常 {fmt(authFailed)}
+        </span>
+      ),
+      color: "",
+    },
+    {
       label: "请求数",
-      value: fmt(data.requests),
+      value: fmtCompact(data.requests),
       sub: (
         <span className="flex items-center gap-3 text-xs">
           <span className="flex items-center gap-1 text-emerald-400">
@@ -37,61 +49,40 @@ export const KpiCards = memo(function KpiCards({ data }: KpiCardsProps) {
           </span>
         </span>
       ),
-      icon: Zap,
-      color: "text-[#6ea8fe]",
-      bg: "bg-[#6ea8fe]/10",
+      color: "",
     },
     {
-      label: "总 Tokens",
-      value: fmt(data.total_tokens),
-      sub: "",
-      icon: BarChart3,
-      color: "text-[#a3c7f6]",
-      bg: "bg-[#a3c7f6]/10",
+      label: "总 Token",
+      value: fmtCompact(data.total_tokens),
+      sub: data.reasoning_tokens > 0 ? `推理 ${fmtCompact(data.reasoning_tokens)}` : "全部模型汇总",
+      color: "",
     },
     {
-      label: "输入 Tokens",
-      value: fmt(data.input_tokens),
-      sub: `缓存 ${fmt(data.cached_tokens)}`,
-      icon: ArrowDownToLine,
-      color: "text-emerald-400",
-      bg: "bg-emerald-400/10",
+      label: "输入 Token",
+      value: fmtCompact(data.input_tokens),
+      sub: `占比 ${inputPct.toFixed(1)}% / 缓存 ${fmtCompact(data.cached_tokens)}`,
+      color: "text-[#60a5fa]",
     },
     {
-      label: "输出 Tokens",
-      value: fmt(data.output_tokens),
-      sub: "",
-      icon: ArrowUpFromLine,
+      label: "输出 Token",
+      value: fmtCompact(data.output_tokens),
+      sub: `占比 ${outputPct.toFixed(1)}%`,
       color: "text-violet-400",
-      bg: "bg-violet-400/10",
-    },
-    {
-      label: "推理 Tokens",
-      value: fmt(data.reasoning_tokens),
-      sub: "",
-      icon: Brain,
-      color: "text-amber-400",
-      bg: "bg-amber-400/10",
     },
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-      {cards.map((c) => (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      {cards.map((c, index) => (
         <div
           key={c.label}
-          className="card-border p-4 flex flex-col gap-2 animate-slide-up transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className="card-border group relative overflow-hidden p-[18px] animate-slide-up hover:-translate-y-px"
+          style={{ animationDelay: `${(index + 1) * 0.04}s` }}
         >
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-md ${c.bg} flex items-center justify-center`}>
-              <c.icon className={`w-4 h-4 ${c.color}`} />
-            </div>
-            <span className="kpi-label">{c.label}</span>
-          </div>
-          <div className="kpi-value">{c.value}</div>
-          {c.sub && (
-            <div className="text-xs text-muted-foreground">{c.sub}</div>
-          )}
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-primary opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="kpi-label mb-2">{c.label}</div>
+          <div className={cn("kpi-value", c.color)}>{c.value}</div>
+          {c.sub && <div className="mt-2 min-h-4 text-[0.72rem] text-muted-foreground">{c.sub}</div>}
         </div>
       ))}
     </div>

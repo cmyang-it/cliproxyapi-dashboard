@@ -12,7 +12,7 @@ export async function register() {
     ensureCollector()
 
     // Start background quota fetcher (reads AUTH_DIR JSON files, polls provider APIs)
-    const { ensureQuotaFetcher } = await import("./lib/quota-fetcher")
+    const { ensureQuotaFetcher } = await import("./lib/quota/fetcher")
     ensureQuotaFetcher()
   }
 }

@@ -8,7 +8,7 @@
  * Reference: Python implementation in cliproxyapi-usage-dashboard/usage_dashboard.py
  */
 
-import { fetchHttpsJson } from "../socks5"
+import { fetchHttpsJson } from "../../socks5"
 import type { AuthFile, QuotaProvider, QuotaResult } from "./types"
 
 // ---------------------------------------------------------------------------
@@ -53,8 +53,8 @@ function parseWhamResponse(raw: WhamResponse, email: string): QuotaResult {
   const primary = rl.primary_window || {}
   const secondary = rl.secondary_window || {}
 
-  const primaryUsed = Math.round(primary.used_percent || 0)
-  const secondaryUsed = Math.round(secondary.used_percent || 0)
+  const primaryUsed = Math.round(primary.used_percent ?? 0)
+  const secondaryUsed = Math.round(secondary.used_percent ?? primary.used_percent ?? 0)
 
   return {
     provider: "codex",
@@ -78,6 +78,7 @@ function parseWhamResponse(raw: WhamResponse, email: string): QuotaResult {
 
 const CHATGPT_HOST = "chatgpt.com"
 const WHAM_PATH = "/backend-api/wham/usage"
+const DEFAULT_CODEX_USER_AGENT = "codex_cli_rs/0.76.0 (Debian 13.0.0; x86_64) WindowsTerminal"
 
 export const codexProvider: QuotaProvider = {
   type: "codex",
@@ -95,17 +96,38 @@ export const codexProvider: QuotaProvider = {
     }
 
     const email = auth.email || "unknown"
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": codexUserAgent(auth),
+    }
+    const accountId = codexAccountId(auth)
+    if (accountId) headers["Chatgpt-Account-Id"] = accountId
 
     const data = (await fetchHttpsJson(
       `https://${CHATGPT_HOST}${WHAM_PATH}`,
-      {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        "User-Agent": "codex-cli",
-      },
+      headers,
       20000,
     )) as WhamResponse
 
     return parseWhamResponse(data, email)
   },
+}
+
+function codexUserAgent(auth: AuthFile): string {
+  return stringField(auth.user_agent) || stringField(auth.userAgent) || DEFAULT_CODEX_USER_AGENT
+}
+
+function codexAccountId(auth: AuthFile): string {
+  return (
+    stringField(auth.account_id) ||
+    stringField(auth.accountId) ||
+    stringField(auth.chatgpt_account_id) ||
+    stringField(auth.chatgptAccountId)
+  )
+}
+
+function stringField(value: unknown): string {
+  return typeof value === "string" ? value.trim() : ""
 }

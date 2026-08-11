@@ -10,6 +10,15 @@ export function fmt(n: number | null | undefined): string {
   return n.toLocaleString("zh-CN")
 }
 
+export function fmtCompact(n: number | null | undefined): string {
+  if (n == null) return "0"
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return n.toLocaleString("zh-CN")
+}
+
 export function fmtMs(ms: number): string {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
